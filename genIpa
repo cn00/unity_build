@@ -1,0 +1,240 @@
+# !/us/sh
+
+set -e
+
+if [[ "${#@}" = "x" ]];then
+    echo -e "usage: $0 -[DRKEU] [-I [bundle_identify]]\n
+-D|--Debug
+-R|--Release
+-E|--ExportIOSProj
+-U|--UploadIpa
+-I|--Identify
+"
+fi
+
+temp=$(getopt -o DRKEUI: --long Debug,Release,Kill,ExportIOSProj,UploadIpa,Identify: -- "$@")
+if [ $? != 0  ] ; then 
+    echo "terminating..." >&2 
+    exit 1 
+fi
+eval set -- "$temp"
+
+configuration=${configuration-"Release"} 
+ExportIOSProj=${ExportIOSProj-"false"} 
+UploadIpa=${UploadIpa-"false"}
+KillUnity="false"
+Identify=${Identify-"com.bilibili.a3"}
+while true;do
+    case "$1" in
+    -D|--Debug) 
+        configuration="Debug"; 
+        shift
+    ;;
+    -K|--Kill)
+        KillUnity="true";
+        shift
+    ;;
+    -R|--Release) 
+        configuration="Release"; 
+        shift
+    ;;
+    -E|--ExportIOSProj) 
+        ExportIOSProj="true"; 
+        shift
+    ;;
+    -U|--UploadIpa) 
+        UploadIpa="true"; 
+        shift
+    ;;
+    -I|--Identify) 
+        Identify="$2"; 
+        shift 2
+    ;;
+    --) 
+        shift;
+        break
+    ;;
+    *) 
+        echo -e "unknow arg:[$1]"; 
+        shift
+    ;;
+    esac
+done
+
+echo -e "
+configuration=${configuration} 
+ExportIOSProj=${ExportIOSProj} 
+UploadIpa=${UploadIpa}
+Identify=${Identify}
+"
+
+function SetColor()
+{
+    Reset='\033[00m'
+    Red='\033[01;31m'
+    Green='\033[01;32m'
+    Yellow='\033[01;33m'
+    Purple='\033[01;35m'
+    Cyan='\033[01;36m'
+    White='\033[01;37m'
+    Bold='\033[1m'
+    Underline='\033[4m'
+}
+
+if [[ "${JENKINS_HOME}x" = "x" ]];then
+    set -x
+    SetColor
+    echo="echo -e"
+else
+    echo="echo"
+fi
+
+if [[ ! -d "Assets" ]]; then
+   ${echo} "${Red}Not an Unity project dir${Reset}" 
+   ${echo} "${Yellow}Place run in an Unity project dir with an \"Assets\"${Reset}"
+   exit 1
+fi
+
+uname="$(uname)"
+if [[ "${uname:1:6}" = "Darwin" ]];then
+    Unity="Unity"
+else
+    Unity="Unity"
+fi
+
+${echo} "${Green}Unity-iPhone package tool${Reset} >"
+
+basepath=$(cd `dirname .`;pwd)
+
+WORKSPACE="${WORKSPACE-${basepath}}"
+
+iosProjDir="ios.proj"
+
+ArchiveName="game.$(date "+%Y%m%d-%H%M%S")"
+
+archivePath="${WORKSPACE}/ios.build/${ArchiveName}.xcarchive"
+exportPath="${WORKSPACE}/ios.build"
+exportOptionsPlist="${WORKSPACE}/exportOptionsPlist.plist"
+schemeName="Unity-iPhone"
+
+
+function DoExportIOSProj()
+{
+    set +e
+    if [[ "${KillUnity}x" = "truex" ]];then
+        ${echo} "kill all unity"
+        killall Unity
+    fi
+    set -e
+
+    mkdir -p "log"
+    ${echo} "Export IOS Proj ..."
+    "${Unity}" -projectPath "${WORKSPACE}" \
+        -quit \
+        -batchmode \
+        -executeMethod "BuildScript.ExportIOSProj" \
+        -logFile "/dev/stdout" | tee "log/unity-$(date "+%Y%m%d-%H%M%S").log"
+
+    #svn ci -m "auto upodate buildNumber" "${WORKSPACE}/ProjectSettings/ProjectSettings.asset"
+
+    ${echo} "Export IOS Proj done $?"
+}
+
+function DoFixXcodeConfig()
+{
+    local infoplist="$1"
+    VersionString=$(${sed} -n '/CFBundleShortVersionString/{n;s#>\(.*\)<#\1#p}' "${infoplist}")
+}
+
+function DoIncrBuildNum()
+{
+     ${echo} "updatting Info.plist ..."
+    local infoplist="Info.plist"
+    
+    ## bundle identifier
+    #${sed} -e '/CFBundleIdentifier/{n;s#>.*<#>'${ACT_PACKAGE_NAME}'<#g}' -i "${infoplist}"
+    
+    ## app name
+    # ${sed} -e '/CFBundleDisplayName/{n;s#>.*<#>'${ACT_APP_NAME}'<#g}' -i "${infoplist}"
+    
+    local buildVersion=$(${sed} -n '/CFBundleVersion/{n;s#.*>\(.*\)<.*#\1#p}' "${infoplist}" | cut -d '.' -f4)
+    buildVersion=${buildVersion-'0'}
+    local newbuildVersion=$((buildVersion+1))
+    ${echo} "${buildVersion} => ${newbuildVersion}"
+    #${sed} -e '/CFBundleVersion/{n;s#>.*<#>'"${GEN_VERSION}.${buildVersion}"'<#g}' -i "${infoplist}"
+    #${sed} -e '/CFBundleShortVersionString/{n;s#>.*<#>'${GEN_VERSION}'<#g}' -i "${infoplist}"
+
+}
+
+function DoXcodeArchive()
+{
+    ${echo} "archive ..."
+    security unlock-keychain -p "a3@bilibili"  "/Users/a3/Library/Keychains/login.keychain"
+
+    local OTHER_LDFLAGS="-ObjC -lresolv -weak_framework CoreMotion -weak-lSystem -Wl -undefined dynamic_lookup"
+    xcodebuild -scheme "${schemeName}" \
+        -configuration "${configuration}" \
+        archive -archivePath "${archivePath}" \
+        -allowProvisioningUpdates \
+        PRODUCT_BUNDLE_IDENTIFIER="com.bilibili.a3" \
+        OTHER_LDFLAGS="${OTHER_LDFLAGS}" \
+        SWIFT_VERSION=4.0 \
+        LD_RUNPATH_SEARCH_PATHS="@executable_path/Framewoks @loader_path/Frameworks" \
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES="YES" \
+        ENABLE_BITCODE="NO" \
+        DEVELOPMENT_TEAM="UL9WJVVZ42"
+    
+    ${echo} "archive done $?"
+}
+
+
+function DoExportIpa()
+{
+    ${echo} "export ipa ..."
+
+    xcodebuild -exportArchive \
+        -exportPath "${exportPath}" \
+        -archivePath "${archivePath}" \
+        -exportOptionsPlist "${exportOptionsPlist}" 
+    
+    local ipa="${exportPath}/${ArchiveName}.ipa"
+    mv "${exportPath}/${schemeName}.ipa" "${ipa}"
+
+    ${echo} "export ipa done $?"
+}
+
+
+function DoUploadIpa()
+{
+    ${echo} "upload ipa for testflight ..."
+
+    local altool="altool"
+    local ipa="${exportPath}/${ArchiveName}.ipa"
+    ${altool} --upload-app -f "${ipa}" -u "${appleaccount}" -p "${applepsword}"
+    
+    ${echo} "upload ipa for testflight done $?"
+}
+
+######################### main ######################### 
+
+# sleep 2
+
+if [[  "${ExportIOSProj}x" = "truex" ]];then
+    DoExportIOSProj
+fi
+
+
+if [[ "${UploadIpa}x" = "truex" ]];then
+
+    pushd "${iosProjDir}"
+
+    DoXcodeArchive
+
+    DoExportIpa
+
+    DoUploadIpa
+
+    popd
+fi
+
+

@@ -1,0 +1,30 @@
+#!/bin/sh
+
+## start jenkins
+function StartJenkins(){
+    echo "startting jenkins ..."
+    mkdir -p ~/jenkins
+    pushd ~/jenkins
+    killN jenkins > /dev/null
+    nohup java -jar jenkins.war > nohup.jenkins 2>&1 &
+    popd
+    echo "startting jenkins end $?\n"
+}
+
+## start http:80
+function StartHttp80(){
+    echo "startting http ..."
+    mkdir -p ~/http
+    pushd ~/http
+    killN http.server > /dev/null
+    nohup sudo python3 -m http.server 80 > nohup.http 2>&1 &
+    popd
+    echo "startting http end $?\n"
+}
+
+########## main ########## 
+
+StartJenkins
+
+StartHttp80
+

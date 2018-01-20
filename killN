@@ -1,0 +1,12 @@
+# !/bin/sh
+
+ProcName="${1}"
+echo "kill:"
+#ps -A|\grep "${ProcName}" | sed /grep/d | awk '{print $1}' | tee /dev/stdout | xargs -I% sudo kill -9 %
+ps -A|\grep "${ProcName}" | sed /grep/d | awk '{print $1}' 
+ps -A|\grep "${ProcName}" | sed /grep/d | awk '{print $1}'  | xargs -I% sudo kill -9 %
+
+sleep 0.5
+
+echo "new:"
+ps -A|\grep "${ProcName}" | sed /grep/d | awk '{print $1}' 

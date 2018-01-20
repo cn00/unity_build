@@ -1,0 +1,130 @@
+# !/bin/sh
+
+set -e
+
+temp=$(getopt -o BKUR:C --long BuildAB,Kill,UploadOss,OssBucketRoot:Clean -- "$@")
+if [ $? != 0  ] ; then 
+    echo "terminating..." >&2 
+    exit 1 
+fi
+eval set -- "$temp"
+
+aloss="${aloss-aliyuncli oss}"
+
+BuildAB="false"
+UploadOss="false"
+KillUnity="false" 
+Clean="false"
+OssBucketRoot="${OssBucketRoot-${ossa3prod}/cb1/master}"
+while true;do
+    case "$1" in
+    -B|--BuildAB) 
+        BuildAB="true"; 
+        shift
+    ;;
+    -K|--Kill) 
+        KillUnity="true"; 
+        shift
+    ;;
+    -R|--OssBucketRoot)
+        OssBucketRoot="$2"; 
+        shift 2
+    ;;
+    -U|--UploadOss) 
+        UploadOss="true"; 
+        shift
+    ;;
+    -C|--Clean) 
+        Clean="true"; 
+        shift
+    ;;
+    --) 
+        shift;
+        break
+    ;;
+    *) 
+        echo -e "unknow arg:[$1]"; 
+        shift
+    ;;
+    esac
+done
+
+echo -e "
+UploadOss=${UploadOss}
+OssBucketRoot=${OssBucketRoot}
+"
+
+function SetColor()
+{
+    Reset='\033[00m'
+    Red='\033[01;31m'
+    Green='\033[01;32m'
+    Yellow='\033[01;33m'
+    Purple='\033[01;35m'
+    Cyan='\033[01;36m'
+    White='\033[01;37m'
+    Bold='\033[1m'
+    Underline='\033[4m'
+}
+
+if [[ "${JENKINS_HOME}x" = "x" ]];then
+    SetColor
+    echo="echo -e"
+else
+    echo="echo"
+fi
+
+if [[ ! -d "Assets" ]]; then
+   ${echo} "${Red}Not an Unity project dir${Reset}" 
+   ${echo} "${Yellow}Place run in an Unity project dir with an \"Assets\"${Reset}"
+   exit 1
+fi
+
+function DoBuildAB()
+{
+	set +e
+    if [[ "${KillUnity}x" = "truex" ]];then
+        ${echo} "kill all unity"
+        killall Unity
+    fi
+	# ClearBuild
+	if [[ "${Clean}x" = "truex" ]];then
+		Unity -projectPath "$(pwd)" \
+		        -quit \
+		        -batchmode \
+		        -executeMethod "Project.AssetBundleBuildManager.ClearBuildCli" \
+		        -logFile "/dev/stdout"
+		
+		\rm -rf "$(pwd)/Assets/Application/Editor/Project/AssetBundle/Work/"*
+		\rm -rf "$(pwd)/AssetBundle/"*
+	fi
+
+	# BuildCli
+	Unity -projectPath "$(pwd)" \
+	        -quit \
+	        -batchmode \
+	        -executeMethod "Project.AssetBundleBuildManager.BuildCli" \
+	        -logFile "/dev/stdout"
+	set -e
+}
+
+function DoUploadOss()
+{
+	pushd "AssetBundle/Main"
+	ls | while read l;do
+        ${echo} "oss putting ${l} => ${OssBucketRoot}/${l} ..."
+		$aloss UploadDisk "${l}" "${OssBucketRoot}/" \
+            --content_type "application/octet-stream" \
+            --device_id 1 #> /dev/null
+	done
+}
+
+################################ main ################################
+
+if [[ "${BuildAB}x" = "truex" ]];then
+    DoBuildAB
+fi
+
+if [[ "${UploadOss}x" = "truex" ]];then
+	DoUploadOss
+fi
