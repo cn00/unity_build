@@ -24,6 +24,7 @@ if [[ "${#@}" = "0" ]];then
     -K|--KillUnity          Kill Unity process
     -U|--UploadIpa          Upload ipa to itunesconnect.apple.com for testflight
 "
+    exit 1
 fi
 
 function SetColor()
