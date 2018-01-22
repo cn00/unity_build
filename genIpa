@@ -64,13 +64,14 @@ Identify=${Identify-"com.bilibili.a3"}
 
 NewBundleVersion="1.0.0"
 NewbuildNumber="1"
+A3Channel="ios_bili_cb1"
 
 IncrBuildNo="false"
 IncrMajorVersion="false"
 IncrMinorVersion="false"
 IncrPatchVersion="false"
 
-temp=$(getopt -o DRKEUI:A --long XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadIpa,Identify:,\
+temp=$(getopt -o DRKEUI:A --long A3Channel:,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadIpa,Identify:,\
 IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
@@ -83,6 +84,10 @@ while true;do
     -A|--XcodeArchive)
         XcodeArchive="true";
         shift
+    ;;
+    --A3Channel)
+        A3Channel="$2";
+        shift 2
     ;;
     -D|--Debug) 
         configuration="Debug"; 
@@ -220,6 +225,13 @@ function DoUpdateVersion()
 {
     ${echo} "updatting ProjectSettings.asset ..."
     local projectSettingAsset="ProjectSettings/ProjectSettings.asset"
+
+    # A3Channel
+    local appbootcs="Assets/Application/Script/System/App/AppBoot.cs"
+    local appbootunity="Assets/Application/Scene/boot.unity"
+    local a3channelNo=$(${sed} -n '/'"${A3Channel}"'\s*=/s#\s*'"${A3Channel}"'\s*=\s*\([0-9]\+\).*#\1#p' "${appbootcs}")
+    ${sed} -e '/m_A3Channel/{s#\(:\s*\).*#\1'"${a3channelNo}"'#}' -i "${appbootunity}"
+    ${echo} "A3Channel: ${A3Channel}=${a3channelNo}"
     
     ## bundle identifier
     #${sed} -e '/CFBundleIdentifier/{n;s#>.*<#>'${ACT_PACKAGE_NAME}'<#g}' -i "${projectSettingAsset}"
