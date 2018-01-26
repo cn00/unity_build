@@ -1,6 +1,13 @@
 # !/bin/sh
 
-set -e
+function ResetExitOnErr()
+{
+    set -e
+}
+function ResetDebug()
+{
+    set +x
+}
 
 if [[ "${#@}" = "0" ]];then
 echo -e "usage: genAB [-BKUC] [-R [OssBucketRoot]] 
@@ -86,6 +93,8 @@ if [[ ! -d "Assets" ]]; then
    exit 1
 fi
 
+source ~/.bash_pw
+
 function DoBuildAB()
 {
 	set +e
@@ -111,26 +120,33 @@ function DoBuildAB()
 	        -batchmode \
 	        -executeMethod "Project.AssetBundleBuildManager.BuildCli" \
 	        -logFile "/dev/stdout"
-	set -e
+    ResetExitOnErr	
 }
 
 function DoUploadOss()
 {
 	pushd "AssetBundle/Main"
+
+    ${echo} "Upload to oss ..."
 	ls | while read l;do
         ${echo} "oss putting ${l} => ${OssBucketRoot}/${l} ..."
 		$aloss UploadDisk "${l}" "${OssBucketRoot}/" \
             --content_type "application/octet-stream" \
             --device_id 1 #> /dev/null
 	done
+
+    ${echo} "Upload to oss done"
+    popd
 }
 
 ################################ main ################################
 
+${echo} "Build AssetBundle? ${BuildAB}"
 if [[ "${BuildAB}x" = "truex" ]];then
     DoBuildAB
 fi
 
+${echo} "Upload AssetBundle to oss? ${UploadProduct}"
 if [[ "${UploadProduct}x" = "truex" ]];then
 	DoUploadOss
 fi
