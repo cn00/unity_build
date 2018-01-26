@@ -205,8 +205,8 @@ function DoExportApk()
     ${echo} "Export android apk ..."
     #set +e
     if [[ "${KillUnity}x" = "truex" ]];then
-        ${echo} "kill all unity"
-        killall Unity
+        ${echo} "kill unity"
+        ps -A | grep "Unity.*$(pwd)" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
     fi
     ResetExitOnErr
 
