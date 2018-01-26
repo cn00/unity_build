@@ -1,4 +1,4 @@
-# !/bin/sh
+#!/bin/sh
 
 ProcName="${1}"
 echo "kill:"

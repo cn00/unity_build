@@ -1,4 +1,4 @@
-# !/us/sh
+#!/bin/sh
 
 
 function ResetExitOnErr()
