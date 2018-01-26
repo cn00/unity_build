@@ -2,7 +2,17 @@
 
 set -e
 
-temp=$(getopt -o BKUR:C --long BuildAB,Kill,UploadOss,OssBucketRoot:Clean -- "$@")
+if [[ "${#@}" = "0" ]];then
+echo -e "usage: genAB [-BKUC] [-R [OssBucketRoot]] 
+     -B|--BuildAB               Build asset bundle
+     -K|--KillUnity             Kill Unity process
+     -U|--UploadProduct         Upload asset bundle to oss
+     -R|--OssBucketRoot rname   bucket_root
+ "
+     exit 1
+ fi
+
+temp=$(getopt -o BKUR:C --long BuildAB,Kill,UploadProduct,OssBucketRoot:Clean -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
     exit 1 
@@ -12,7 +22,7 @@ eval set -- "$temp"
 aloss="${aloss-aliyuncli oss}"
 
 BuildAB="false"
-UploadOss="false"
+UploadProduct="false"
 KillUnity="false" 
 Clean="false"
 OssBucketRoot="${OssBucketRoot-${ossa3prod}/cb1/master}"
@@ -30,8 +40,8 @@ while true;do
         OssBucketRoot="$2"; 
         shift 2
     ;;
-    -U|--UploadOss) 
-        UploadOss="true"; 
+    -U|--UploadProduct) 
+        UploadProduct="true"; 
         shift
     ;;
     -C|--Clean) 
@@ -49,10 +59,6 @@ while true;do
     esac
 done
 
-echo -e "
-UploadOss=${UploadOss}
-OssBucketRoot=${OssBucketRoot}
-"
 
 function SetColor()
 {
@@ -125,6 +131,6 @@ if [[ "${BuildAB}x" = "truex" ]];then
     DoBuildAB
 fi
 
-if [[ "${UploadOss}x" = "truex" ]];then
+if [[ "${UploadProduct}x" = "truex" ]];then
 	DoUploadOss
 fi
