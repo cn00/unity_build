@@ -82,11 +82,10 @@ WORKSPACE="${WORKSPACE-${BasePath}}"
 ProductDir="${WORKSPACE}/bin"
 mkdir -p "${ProductDir}"
 
-SchemeName="Unity-iPhone"
 ArchiveName="game"
 DateTime=$(date "+%m%d%H%M")
 
-temp=$(getopt -o CDFRSKENUI:AP --long UploadFtp,Simulator:A3Channel:,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportApk,UploadProduct,Identify:,\
+temp=$(getopt -o CDFRSKENUI:AP --long UploadFtp,A3Channel:,Debug,Release,KillUnity,ExportApk,UploadProduct,Identify:,\
 IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
@@ -96,14 +95,6 @@ eval set -- "$temp"
 
 while true;do
     case "$1" in
-    -A|--XcodeArchive)
-        XcodeArchive="true";
-        shift
-    ;;
-    -P|--ExportIpa)
-        ExportIpa="true"
-        shift
-    ;;
     --A3Channel)
         A3Channel="$2";
         shift 2
@@ -276,13 +267,13 @@ function DoUpdateConfig()
     ${echo} "bundleVersion: ${bundleVersion} => ${NewBundleVersion}"
     
     # buildNumber
-    local buildNumber=$(${sed} -n '/buildNumber/{n;s#^\s*.*:\s*##p}' "${projectSettingAsset}")
+    local buildNumber=$(${sed} -n '/AndroidBundleVersionCode/{s#^\s*.*:\s*##p}' "${projectSettingAsset}")
     buildNumber=${buildNumber-'0'}
     NewBuildNumber=${buildNumber}
     ${echo} "Increase build number? ${IncrBuildNo}"
     if [[ "${IncrBuildNo}x" = "truex" ]];then
         NewBuildNumber=$((buildNumber+1))
-        ${sed} -e '/buildNumber/{n;s#\(:\s*\).*#\1'"${NewBuildNumber}"'#}' -i "${projectSettingAsset}"
+        ${sed} -e '/AndroidBundleVersionCode/{s#\(:\s*\).*#\1'"${NewBuildNumber}"'#}' -i "${projectSettingAsset}"
     fi
 
     if [[ "${AutoCommit}x" = "truex" ]];then
