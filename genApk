@@ -1,0 +1,329 @@
+#!/bin/sh
+
+
+function ResetExitOnErr()
+{
+    set -e
+}
+function ResetDebug()
+{
+    set +x
+}
+
+if [[ "${#@}" = "0" ]];then
+    echo -e "usage: genApk [-CDRGKEU] [-I [bundle_identifier]]
+    -C|--AutoCommit         Auto commit config to repository
+    -D|--Debug              Debug build
+    -R|--Release            Release build
+    -E|--ExportApk      Export iOS project
+    -N|--IncrBuildNo        Increase build nomber
+    --IncrMajorVersion      Increase major version
+    --IncrMinorVersion      Increase minor version
+    --IncrPatchVersion      Increase patch version
+    -I|--Identify bundleId  iOS project bundle identifier
+    -K|--KillUnity          Kill Unity process
+    -U|--UploadProduct      Upload ipa to itunesconnect.apple.com for testflight
+    -F|--UploadFtp          Upload ipa to ftp
+"
+    exit 1
+fi
+
+function SetColor()
+{
+    set +x
+    Reset='\033[00m'
+    Red='\033[01;31m'
+    Green='\033[01;32m'
+    Yellow='\033[01;33m'
+    Purple='\033[01;35m'
+    Cyan='\033[01;36m'
+    White='\033[01;37m'
+    Bold='\033[1m'
+    Underline='\033[4m'
+    ResetDebug
+}
+
+if [[ "${JENKINS_HOME}x" = "x" ]];then
+    ResetDebug
+    SetColor
+    echo="echo -e"
+else
+    echo="echo"
+fi
+
+if [[ ! -d "Assets" ]]; then
+   ${echo} "${Red}Error: Not an Unity project dir${Reset}" 
+   ${echo} "${Yellow}Place run genIpa in an Unity project WORKSPACE with an \"Assets\"${Reset}"
+   exit 1
+fi
+
+## these options may pass by jenkins
+XcodeArchive=${XcodeArchive-"false"}
+ExportIpa=${ExportIpa-"false"}
+configuration=${configuration-"Release"} 
+ExportApk=${ExportApk-"false"} 
+UploadProduct=${UploadProduct-"false"}
+KillUnity=${KillUnity-"false"}
+Identify=${Identify-"com.bilibili.a3"}
+
+NewBundleVersion="1.0.0"
+NewBuildNumber="1"
+A3Channel=${A3Channel-"android_bili_cb1"}
+
+AutoCommit=${AutoCommit-"false"}
+IncrBuildNo=${IncrBuildNo-"false"}
+IncrMajorVersion=${IncrMajorVersion-"false"}
+IncrMinorVersion=${IncrMinorVersion-"false"}
+IncrPatchVersion=${IncrPatchVersion-"false"}
+Simulator="false"
+
+BasePath=$(cd `dirname .`;pwd)
+WORKSPACE="${WORKSPACE-${BasePath}}"
+ProductDir="${WORKSPACE}/bin"
+mkdir -p "${ProductDir}"
+
+SchemeName="Unity-iPhone"
+ArchiveName="game"
+DateTime=$(date "+%m%d%H%M")
+
+temp=$(getopt -o CDFRSKENUI:AP --long UploadFtp,Simulator:A3Channel:,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportApk,UploadProduct,Identify:,\
+IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
+if [ $? != 0  ] ; then 
+    echo "terminating..." >&2 
+    exit 1 
+fi
+eval set -- "$temp"
+
+while true;do
+    case "$1" in
+    -A|--XcodeArchive)
+        XcodeArchive="true";
+        shift
+    ;;
+    -P|--ExportIpa)
+        ExportIpa="true"
+        shift
+    ;;
+    --A3Channel)
+        A3Channel="$2";
+        shift 2
+    ;;
+    -C|AutoCommit)
+        AutoCommit="true";
+        shift
+    ;;
+    -D|--Debug) 
+        configuration="Debug"; 
+        shift
+    ;;
+    -R|--Release) 
+        configuration="Release"; 
+        shift
+    ;;
+    -K|--KillUnity)
+        KillUnity="true";
+        shift
+    ;;
+    -N|--IncrBuildNo) 
+        IncrBuildNo="true"; 
+        shift
+    ;;
+    --IncrMajorVersion) 
+        IncrMajorVersion="true"; 
+        shift
+    ;;
+    --IncrMinorVersion) 
+        IncrMinorVersion="true"; 
+        shift
+    ;;
+    --IncrPatchVersion) 
+        IncrPatchVersion="true"; 
+        shift
+    ;;
+    -E|--ExportApk) 
+        ExportApk="true"; 
+        shift
+    ;;
+    -U|--UploadProduct) 
+        UploadProduct="true"; 
+        shift
+    ;;
+    -F|--UploadFtp) 
+        UploadFtp="true"; 
+        shift
+    ;;
+    -I|--Identify) 
+        Identify="$2"; 
+        shift 2
+    ;;
+    --) 
+        shift;
+        break
+    ;;
+    *) 
+        echo -e "unknow arg:[$1]"; 
+        shift
+    ;;
+    esac
+done
+
+
+GitSvn="false"
+set +e
+git svn info > /dev/null
+if [[ "$?" = "0" ]];then
+    GitSvn="true"
+fi
+ResetExitOnErr
+
+sysname=$(uname)
+sysname=${sysname:0:6}
+if [[ "${sysname}x" = "Darwinx" ]];then
+    Unity="Unity"
+    sed="gsed"
+else
+    sed="sed"
+    Unity="Unity"
+fi
+
+${echo} "${Green}Unity-iPhone package tool${Reset} >"
+
+function DoCommit()
+{
+    file="$1"
+    msg="$2"
+    
+    ${echo} "auto commit: ${msg} ${file}"
+    ${echo} "is Git-Svn repository? ${GitSvn}"
+    if [[ "${GitSvn}x" = "truex" ]];then
+        git add "${file}"
+        git commit -m "${msg}"
+        stashmsg=$(git stash)
+        git svn dcommit
+        ${echo} "is stashed something?"
+        if [[ "${stashmsg:0:5}" = "Saved" ]];then
+           git stash pop 
+        fi
+    else
+        svn commit --username "${svnuname}" --password "${svnpword}" -m "${msg}" "${file}"
+    fi
+}
+
+function DoExportApk()
+{
+    ${echo} "Export android apk ..."
+    #set +e
+    if [[ "${KillUnity}x" = "truex" ]];then
+        ${echo} "kill all unity"
+        killall Unity
+    fi
+    ResetExitOnErr
+
+    local executeMethod="BuildScript.BuildAndroidApk"
+
+    mkdir -p "log"
+    "${Unity}" -projectPath "${WORKSPACE}" \
+        -quit \
+        -batchmode \
+        -executeMethod "${executeMethod}" \
+        -logFile "/dev/stdout" | \
+        tee "log/unity-$(date "+%Y%m%d-%H%M%S").log"
+
+    ${echo} "Export android apk done $?"
+}
+
+
+function DoUpdateConfig()
+{
+    ${echo} "updatting ProjectSettings.asset ..."
+    local projectSettingAsset="ProjectSettings/ProjectSettings.asset"
+
+    # A3Channel
+    local appbootcs="Assets/Application/Script/System/App/AppBoot.cs"
+    local appbootunity="Assets/Application/Scene/boot.unity"
+    local a3channelNo=$(${sed} -n '/'"${A3Channel}"'\s*=/s#\s*'"${A3Channel}"'\s*=\s*\([0-9]\+\).*#\1#p' "${appbootcs}")
+    ${sed} -e '/m_A3Channel/{s#\(:\s*\).*#\1'"${a3channelNo}"'#}' -i "${appbootunity}"
+    ${echo} "A3Channel: ${A3Channel}=${a3channelNo}"
+    
+    ## bundle identifier
+    #${sed} -e '/CFBundleIdentifier/{n;s#>.*<#>'${ACT_PACKAGE_NAME}'<#g}' -i "${projectSettingAsset}"
+ 
+    ## app name
+    # ${sed} -e '/CFBundleDisplayName/{n;s#>.*<#>'${ACT_APP_NAME}'<#g}' -i "${projectSettingAsset}"
+
+    # bundle Version
+    local bundleVersion=$(${sed} -n '/bundleVersion/{s#^\s*.*:\s*##p}' "${projectSettingAsset}")
+    bundleVersion=${bundleVersion-1.0.0}
+    local major=${bundleVersion/\.*}; major=${major:-"0"}
+    local minor=${bundleVersion%\.*}; minor=${minor/*\.}; minor=${minor:-"0"}
+    local patch=${bundleVersion/*\.}; patch=${patch:-"0"}
+    ${echo} "Increase major version? ${IncrMajorVersion}"
+    ${echo} "Increase minor version? ${IncrMinorVersion}"
+    ${echo} "Increase patch version? ${IncrPatchVersion}"
+    if [[ "${IncrMajorVersion}x" = "truex" ]];then
+        major=$((major+1))
+        minor=0
+        patch=0
+    elif [[ "${IncrMinorVersion}x" = "truex" ]];then
+        minor=$((minor+1))
+        patch=0
+    elif [[ "${IncrPatchVersion}x" = "truex" ]];then
+        patch=$((patch+1))
+    fi
+    NewBundleVersion="${major}.${minor}.${patch}"
+    ${sed} -e '/bundleVersion/{s#\(:\s*\).*#\1'"${NewBundleVersion}"'#}' -i "${projectSettingAsset}"
+    echo "${NewBundleVersion}" > "${ProductDir}/version"
+    ${echo} "bundleVersion: ${bundleVersion} => ${NewBundleVersion}"
+    
+    # buildNumber
+    local buildNumber=$(${sed} -n '/buildNumber/{n;s#^\s*.*:\s*##p}' "${projectSettingAsset}")
+    buildNumber=${buildNumber-'0'}
+    NewBuildNumber=${buildNumber}
+    ${echo} "Increase build number? ${IncrBuildNo}"
+    if [[ "${IncrBuildNo}x" = "truex" ]];then
+        NewBuildNumber=$((buildNumber+1))
+        ${sed} -e '/buildNumber/{n;s#\(:\s*\).*#\1'"${NewBuildNumber}"'#}' -i "${projectSettingAsset}"
+    fi
+
+    if [[ "${AutoCommit}x" = "truex" ]];then
+        DoCommit "${projectSettingAsset}" "auto upodate buildNumber:${NewBuildNumber}"
+    fi
+
+    ${echo} "buildNumber: ${buildNumber} => ${NewBuildNumber}"
+}
+
+function DoUploadFtp()
+{
+    ${echo} "upload apk to ftp ..."
+
+    touch "${ProductDir}/lastApkPath"
+
+    local localFile="$(cat ${ProductDir}/lastApkPath)"
+    local ftpPath="$2"
+    local ftpPath="${NewBundleVersion}/${A3Channel/*_/}/a3_${NewBundleVersion}_${DateTime}.apk"
+    curl -u ${ftpuname}:${ftppword} \
+        --ftp-create-dirs \
+        -T "${localFile}" \
+        ${ftpdomain}/${ftpPath}
+
+    ${echo} "upload apk to ftp done"
+}
+
+######################### main ######################### 
+
+set +x
+source ~/.bash_pw
+ResetDebug
+
+DoUpdateConfig
+
+${echo} "Export android apk? ${ExportApk}"
+if [[  "${ExportApk}x" = "truex" ]];then
+    DoExportApk
+fi
+
+${echo} "Upload apk to ftp? ${UploadFtp}"
+if [[ "${UploadFtp}x" = "truex" ]];then
+    DoUploadFtp 
+fi
+
