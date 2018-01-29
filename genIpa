@@ -7,7 +7,7 @@ function ResetExitOnErr()
 }
 function ResetDebug()
 {
-    set -x
+    set +x
 }
 
 if [[ "${#@}" = "0" ]];then
