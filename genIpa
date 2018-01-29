@@ -63,7 +63,7 @@ fi
 ## these options may pass by jenkins
 XcodeArchive=${XcodeArchive-"false"}
 ExportIpa=${ExportIpa-"false"}
-export configuration=${configuration-"Release"} 
+export configuration=${configuration-"Release"} # export let mono csharp can catch this
 ExportIOSProj=${ExportIOSProj-"false"} 
 UploadProduct=${UploadProduct-"false"}
 UploadFtp=${UploadFtp-"false"}
@@ -359,7 +359,7 @@ function DoExportIpa()
     echo "${ipa}" > "${ProductDir}/lastIpaPath"
 
     popd
-    ${echo} "export ipa done $?"
+    ${echo} "export ipa done ${ipa/\/Users\/$(whoami)\/\.jenkins/http:\/\/a3.local} $?"
 
 }
 
@@ -380,7 +380,7 @@ function DoUploadFtp()
         ${ftpdomain}/${ftpPath}
 
     popd
-    ${echo} "upload ipa to ftp done"
+    ${echo} "upload ipa to ftp ${ftpdomain}/${ftpPath} done"
 }
 
 function DoUploadIpa()

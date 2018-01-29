@@ -15,10 +15,10 @@ function StartJenkins(){
 function StartHttp80(){
     echo "start http ..."
     mkdir -p ~/http
-    pushd ~/http
+    #pushd ~/http
     killN http.server > /dev/null
-    nohup sudo python3 -m http.server 80 > nohup.http 2>&1 &
-    popd
+    nohup sudo python3 -m http.server 80 > ~/http/nohup.http 2>&1 &
+    #popd
     echo "start http end $?\n"
 }
 
