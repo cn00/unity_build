@@ -343,11 +343,19 @@ function DoExportIpa()
     pushd "${IosProjDir}"
     DoUnlockKeychain
 
-    touch .lastArchivePath
+    touch ${ProductDir}/lastArchivePath
     local lastArchivePath="$(cat ${ProductDir}/lastArchivePath)"
 
     local exportPath="${ProductDir}"
     local exportOptionsPlist="${WORKSPACE}/exportOptionsPlist.plist"
+    if [[ ! -f "${exportOptionsPlist}" ]];then
+        if [[ -f "~/workspace/exportOptionsPlist.plist" ]];then
+            ln "~/workspace/exportOptionsPlist.plist" "${exportOptionsPlist}"
+        else
+            ${echo} "Can not find an ~/workspace/exportOptionsPlist.plist"
+            exit -1
+        fi
+    fi
     xcodebuild -exportArchive \
         -exportPath "${exportPath}" \
         -archivePath "${lastArchivePath}" \
@@ -368,7 +376,6 @@ function DoUploadFtp()
     ${echo} "upload ipa to ftp ..."
     pushd "${IosProjDir}"
 
-    touch .lastIpaPath
     local ipa="$(cat ${ProductDir}/lastIpaPath)"
 
     local localFile="${ipa}"
@@ -388,7 +395,6 @@ function DoUploadIpa()
     ${echo} "upload ipa to itunesconnect for testflight ..."
     pushd "${IosProjDir}"
 
-    touch .lastIpaPath
     local ipa="$(cat ${ProductDir}/lastIpaPath)"
 
     local altool="altool"

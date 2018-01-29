@@ -64,7 +64,7 @@ configuration=${configuration-"Release"}
 ExportApk=${ExportApk-"false"} 
 UploadProduct=${UploadProduct-"false"}
 UploadFtp=${UploadFtp-"false"}
-KillUnity=${KillUnity-"false"}
+KillUnity=${KillUnity-"true"}
 Identify=${Identify-"com.bilibili.a3"}
 
 NewBundleVersion="1.0.0"
@@ -106,11 +106,11 @@ while true;do
         shift
     ;;
     -D|--Debug) 
-        configuration="Debug"; 
+        export configuration="Debug"; 
         shift
     ;;
     -R|--Release) 
-        configuration="Release"; 
+        export configuration="Release"; 
         shift
     ;;
     -K|--KillUnity)
@@ -220,9 +220,15 @@ function DoExportApk()
         -batchmode \
         -executeMethod "${executeMethod}" \
         -logFile "/dev/stdout" | \
-        tee "log/unity-$(date "+%Y%m%d-%H%M%S").log"
+        tee "log/unity-${DateTime}.log"
+	
+    local tmpapk="${ProductDir}/game.apk"	
+    local apk="${ProductDir}/${ArchiveName}-${A3Channel/*_/}-${NewBundleVersion}-${DateTime}-${NewBuildNumber}.apk"
 
-    ${echo} "Export android apk done $?"
+    mv "${tmpapk}" "${apk}"
+    echo "${apk}" "${ProductDir}/lastApkPath"
+
+    ${echo} "Export android apk ${apk/\/Users\/$(whoami)\/\.jenkins/http:\/\/a3.local} done $?"
 }
 
 
@@ -299,7 +305,7 @@ function DoUploadFtp()
         -T "${localFile}" \
         ${ftpdomain}/${ftpPath}
 
-    ${echo} "upload apk to ftp done"
+    ${echo} "upload apk to ftp ${ftpdomain}/${ftpPath} done"
 }
 
 ######################### main ######################### 
