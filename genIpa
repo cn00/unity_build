@@ -7,7 +7,7 @@ function ResetExitOnErr()
 }
 function ResetDebug()
 {
-    set +x
+    set -x
 }
 
 if [[ "${#@}" = "0" ]];then
@@ -63,7 +63,7 @@ fi
 ## these options may pass by jenkins
 XcodeArchive=${XcodeArchive-"false"}
 ExportIpa=${ExportIpa-"false"}
-configuration=${configuration-"Release"} 
+export configuration=${configuration-"Release"} 
 ExportIOSProj=${ExportIOSProj-"false"} 
 UploadProduct=${UploadProduct-"false"}
 UploadFtp=${UploadFtp-"false"}
@@ -119,11 +119,11 @@ while true;do
         shift
     ;;
     -D|--Debug) 
-        configuration="Debug"; 
+        export configuration="Debug"; 
         shift
     ;;
     -R|--Release) 
-        configuration="Release"; 
+        export configuration="Release"; 
         shift
     ;;
     -K|--KillUnity)
@@ -225,7 +225,7 @@ function DoExportIOSProj()
     set +e
     if [[ "${KillUnity}x" = "truex" ]];then
         ${echo} "kill unity"
-        ps -A | grep "Unity.*$(pwd)" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
+        ps -A | grep "Unity .*$(pwd)" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
     fi
     ResetExitOnErr
 
@@ -236,12 +236,12 @@ function DoExportIOSProj()
 
     mkdir -p "log"
     ${echo} "Export IOS Proj ..."
-    "${Unity}" -projectPath "${WORKSPACE}" \
+    ${Unity} -projectPath "${WORKSPACE}" \
         -quit \
         -batchmode \
         -executeMethod "${executeMethod}" \
         -logFile "/dev/stdout" | \
-        tee "log/unity-$(date "+%Y%m%d-%H%M%S").log"
+        tee "log/unity-${DateTime}.log"
 
     ${echo} "Export IOS Proj done $?"
 }
@@ -306,20 +306,25 @@ function DoUpdateConfig()
     ${echo} "buildNumber: ${buildNumber} => ${NewBuildNumber}"
 }
 
+function DoUnlockKeychain()
+{
+    security unlock-keychain -p "${syspword}"  "/Users/a3/Library/Keychains/login.keychain"
+}
+
 function DoXcodeArchive()
 {
     ${echo} "archive ..."
     pushd "${IosProjDir}"
-    security unlock-keychain -p "${syspword}"  "/Users/a3/Library/Keychains/login.keychain"
+    DoUnlockKeychain
 
-    local archivePath="${ProductDir}/${ArchiveName}-${A3Channel/*_/}-${NewBundleVersion}-${DateTime}-${NewBuildNumber}.xcarchive"
     local OTHER_LDFLAGS="-ObjC -lresolv -weak_framework CoreMotion -weak-lSystem -Wl -undefined dynamic_lookup"
+    local archivePath="${ProductDir}/${ArchiveName}-${A3Channel/*_/}-${NewBundleVersion}-${DateTime}-${NewBuildNumber}.xcarchive"
     xcodebuild -scheme "${SchemeName}" \
         -configuration "${configuration}" \
         archive -archivePath "${archivePath}" \
         -allowProvisioningUpdates \
-        PRODUCT_BUNDLE_IDENTIFIER="com.bilibili.a3" \
         OTHER_LDFLAGS="${OTHER_LDFLAGS}" \
+        PRODUCT_BUNDLE_IDENTIFIER="com.bilibili.a3" \
         SWIFT_VERSION=4.0 \
         LD_RUNPATH_SEARCH_PATHS="@executable_path/Framewoks @loader_path/Frameworks" \
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES="YES" \
@@ -336,11 +341,12 @@ function DoExportIpa()
 {
     ${echo} "export ipa ..."
     pushd "${IosProjDir}"
+    DoUnlockKeychain
 
     touch .lastArchivePath
     local lastArchivePath="$(cat ${ProductDir}/lastArchivePath)"
 
-    local exportPath="${WORKSPACE}/ios.build"
+    local exportPath="${ProductDir}"
     local exportOptionsPlist="${WORKSPACE}/exportOptionsPlist.plist"
     xcodebuild -exportArchive \
         -exportPath "${exportPath}" \
