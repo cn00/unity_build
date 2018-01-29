@@ -63,12 +63,14 @@ ExportIpa=${ExportIpa-"false"}
 configuration=${configuration-"Release"} 
 ExportApk=${ExportApk-"false"} 
 UploadProduct=${UploadProduct-"false"}
+UploadFtp=${UploadFtp-"false"}
 KillUnity=${KillUnity-"false"}
 Identify=${Identify-"com.bilibili.a3"}
 
 NewBundleVersion="1.0.0"
 NewBuildNumber="1"
 A3Channel=${A3Channel-"android_bili_cb1"}
+A3Channel=${A3Channel%#*}
 
 AutoCommit=${AutoCommit-"false"}
 IncrBuildNo=${IncrBuildNo-"false"}
