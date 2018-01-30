@@ -7,7 +7,7 @@ function ResetExitOnErr()
 }
 function ResetDebug()
 {
-    set +x
+    set -x
 }
 
 if [[ "${#@}" = "0" ]];then
@@ -56,36 +56,6 @@ if [[ ! -d "Assets" ]]; then
    ${echo} "${Yellow}Place run genIpa in an Unity project WORKSPACE with an \"Assets\"${Reset}"
    exit 1
 fi
-
-## these options may pass by jenkins
-XcodeArchive=${XcodeArchive-"false"}
-ExportIpa=${ExportIpa-"false"}
-configuration=${configuration-"Release"} 
-ExportApk=${ExportApk-"false"} 
-UploadProduct=${UploadProduct-"false"}
-UploadFtp=${UploadFtp-"false"}
-KillUnity=${KillUnity-"true"}
-Identify=${Identify-"com.bilibili.a3"}
-
-NewBundleVersion="1.0.0"
-NewBuildNumber="1"
-A3Channel=${A3Channel-"android_bili_cb1"}
-A3Channel=${A3Channel%#*}
-
-AutoCommit=${AutoCommit-"false"}
-IncrBuildNo=${IncrBuildNo-"false"}
-IncrMajorVersion=${IncrMajorVersion-"false"}
-IncrMinorVersion=${IncrMinorVersion-"false"}
-IncrPatchVersion=${IncrPatchVersion-"false"}
-Simulator="false"
-
-BasePath=$(cd `dirname .`;pwd)
-WORKSPACE="${WORKSPACE-${BasePath}}"
-ProductDir="${WORKSPACE}/bin"
-mkdir -p "${ProductDir}"
-
-ArchiveName="game"
-DateTime=$(date "+%m%d%H%M")
 
 temp=$(getopt -o CDFRSKENUI:AP --long UploadFtp,A3Channel:,Debug,Release,KillUnity,ExportApk,UploadProduct,Identify:,\
 IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
@@ -160,6 +130,34 @@ while true;do
     esac
 done
 
+## these options may pass by jenkins
+configuration=${configuration-"Release"} 
+ExportApk=${ExportApk-"false"} 
+UploadProduct=${UploadProduct-"false"}
+UploadFtp=${UploadFtp-"false"}
+KillUnity=${KillUnity-"true"}
+Identify=${Identify-"com.bilibili.a3"}
+
+NewBundleVersion="1.0.0"
+NewBuildNumber="1"
+A3Channel=${A3Channel-"android_bili_cb1"}
+A3Channel=${A3Channel%#*}
+
+AutoCommit=${AutoCommit-"false"}
+IncrBuildNo=${IncrBuildNo-"false"}
+IncrMajorVersion=${IncrMajorVersion-"false"}
+IncrMinorVersion=${IncrMinorVersion-"false"}
+IncrPatchVersion=${IncrPatchVersion-"false"}
+Simulator="false"
+
+BasePath=$(cd `dirname .`;pwd)
+WORKSPACE="${WORKSPACE-${BasePath}}"
+ProductDir="${WORKSPACE}/bin"
+mkdir -p "${ProductDir}"
+
+ArchiveName="game"
+DateTime=$(date "+%m%d%H%M")
+
 
 GitSvn="false"
 set +e
@@ -209,6 +207,7 @@ function DoExportApk()
     if [[ "${KillUnity}x" = "truex" ]];then
         ${echo} "kill unity"
         ps -A | grep "Unity.*$(pwd)" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
+        ps -A | grep "Unity$" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
     fi
     ResetExitOnErr
 
@@ -226,9 +225,9 @@ function DoExportApk()
     local apk="${ProductDir}/${ArchiveName}-${A3Channel/*_/}-${NewBundleVersion}-${DateTime}-${NewBuildNumber}.apk"
 
     mv "${tmpapk}" "${apk}"
-    echo "${apk}" "${ProductDir}/lastApkPath"
+    echo "${apk}" > "${ProductDir}/lastApkPath"
 
-    ${echo} "Export android apk ${apk/\/Users\/$(whoami)\/\.jenkins/http:\/\/a3.local} done $?"
+    ${echo} "Export android apk ${apk/\/Users\/$(whoami)\/\.jenkins/http://a3.local} done $?"
 }
 
 
@@ -297,13 +296,17 @@ function DoUploadFtp()
 
     touch "${ProductDir}/lastApkPath"
 
+    local logout="/dev/null"
+    if [[ "${JENKINS_HOME}x" = "x" ]];then
+        logout="/dev/stdout"
+    fi
+
     local localFile="$(cat ${ProductDir}/lastApkPath)"
-    local ftpPath="$2"
     local ftpPath="${NewBundleVersion}/${A3Channel/*_/}/a3_${NewBundleVersion}_${DateTime}.apk"
     curl -u ${ftpuname}:${ftppword} \
         --ftp-create-dirs \
         -T "${localFile}" \
-        ${ftpdomain}/${ftpPath}
+        ${ftpdomain}/${ftpPath} > "${logout}"
 
     ${echo} "upload apk to ftp ${ftpdomain}/${ftpPath} done"
 }

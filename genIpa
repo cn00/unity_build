@@ -7,7 +7,7 @@ function ResetExitOnErr()
 }
 function ResetDebug()
 {
-    set +x
+    set -x
 }
 
 if [[ "${#@}" = "0" ]];then
@@ -59,38 +59,6 @@ if [[ ! -d "Assets" ]]; then
    ${echo} "${Yellow}Place run genIpa in an Unity project WORKSPACE with an \"Assets\"${Reset}"
    exit 1
 fi
-
-## these options may pass by jenkins
-XcodeArchive=${XcodeArchive-"false"}
-ExportIpa=${ExportIpa-"false"}
-export configuration=${configuration-"Release"} # export let mono csharp can catch this
-ExportIOSProj=${ExportIOSProj-"false"} 
-UploadProduct=${UploadProduct-"false"}
-UploadFtp=${UploadFtp-"false"}
-KillUnity=${KillUnity-"true"}
-Identify=${Identify-"com.bilibili.a3"}
-
-NewBundleVersion="1.0.0"
-NewBuildNumber="1"
-A3Channel=${A3Channel-"ios_bili_cb1"}
-A3Channel=${A3Channel%#*}
-
-AutoCommit=${AutoCommit-"false"}
-IncrBuildNo=${IncrBuildNo-"false"}
-IncrMajorVersion=${IncrMajorVersion-"false"}
-IncrMinorVersion=${IncrMinorVersion-"false"}
-IncrPatchVersion=${IncrPatchVersion-"false"}
-Simulator="false"
-
-BasePath=$(cd `dirname .`;pwd)
-WORKSPACE="${WORKSPACE-${BasePath}}"
-IosProjDir="ios.proj"
-ProductDir="${WORKSPACE}/bin"
-mkdir -p "${ProductDir}"
-
-SchemeName="Unity-iPhone"
-ArchiveName="game"
-DateTime=$(date "+%m%d%H%M")
 
 temp=$(getopt -o CDFRSKENUI:AP --long UploadFtp,Simulator:A3Channel:,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadProduct,Identify:,\
 IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
@@ -178,6 +146,37 @@ while true;do
     esac
 done
 
+## these options may pass by jenkins
+XcodeArchive=${XcodeArchive-"false"}
+ExportIpa=${ExportIpa-"false"}
+export configuration=${configuration-"Release"} # export let mono csharp can catch this
+ExportIOSProj=${ExportIOSProj-"false"} 
+UploadProduct=${UploadProduct-"false"}
+UploadFtp=${UploadFtp-"false"}
+KillUnity=${KillUnity-"true"}
+Identify=${Identify-"com.bilibili.a3"}
+
+NewBundleVersion="1.0.0"
+NewBuildNumber="1"
+A3Channel=${A3Channel-"ios_bili_cb1"}
+A3Channel=${A3Channel%#*}
+
+AutoCommit=${AutoCommit-"false"}
+IncrBuildNo=${IncrBuildNo-"false"}
+IncrMajorVersion=${IncrMajorVersion-"false"}
+IncrMinorVersion=${IncrMinorVersion-"false"}
+IncrPatchVersion=${IncrPatchVersion-"false"}
+Simulator="false"
+
+BasePath=$(cd `dirname .`;pwd)
+WORKSPACE="${WORKSPACE-${BasePath}}"
+IosProjDir="ios.proj"
+ProductDir="${WORKSPACE}/bin"
+mkdir -p "${ProductDir}"
+
+SchemeName="Unity-iPhone"
+ArchiveName="game"
+DateTime=$(date "+%m%d%H%M")
 
 GitSvn="false"
 set +e
@@ -226,6 +225,7 @@ function DoExportIOSProj()
     if [[ "${KillUnity}x" = "truex" ]];then
         ${echo} "kill unity"
         ps -A | grep "Unity .*$(pwd)" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
+        ps -A | grep "Unity$" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
     fi
     ResetExitOnErr
 
@@ -367,7 +367,7 @@ function DoExportIpa()
     echo "${ipa}" > "${ProductDir}/lastIpaPath"
 
     popd
-    ${echo} "export ipa done ${ipa/\/Users\/$(whoami)\/\.jenkins/http:\/\/a3.local} $?"
+    ${echo} "export ipa done ${ipa/\/Users\/$(whoami)\/\.jenkins/http://a3.local} $?"
 
 }
 
@@ -378,13 +378,18 @@ function DoUploadFtp()
 
     local ipa="$(cat ${ProductDir}/lastIpaPath)"
 
+    local logout="/dev/null"
+    if [[ "${JENKINS_HOME}x" = "x" ]];then
+        logout="/dev/stdout"
+    fi
+
     local localFile="${ipa}"
     local ftpPath="$2"
     local ftpPath="${NewBundleVersion}/${A3Channel/*_/}/a3_${NewBundleVersion}_${DateTime}.ipa"
     curl -u ${ftpuname}:${ftppword} \
         --ftp-create-dirs \
         -T "${localFile}" \
-        ${ftpdomain}/${ftpPath}
+        ${ftpdomain}/${ftpPath} > "${logout}"
 
     popd
     ${echo} "upload ipa to ftp ${ftpdomain}/${ftpPath} done"
@@ -397,8 +402,13 @@ function DoUploadIpa()
 
     local ipa="$(cat ${ProductDir}/lastIpaPath)"
 
+    local logout="/dev/null"
+    if [[ "${JENKINS_HOME}x" = "x" ]];then
+        logout="/dev/stdout"
+    fi
+    
     local altool="altool"
-    ${altool} --upload-app -f "${ipa}" -u "${appleaccount}" -p "${applepsword}"
+    ${altool} --upload-app -f "${ipa}" -u "${appleaccount}" -p "${applepsword}" > "${logout}"
 
     popd
     ${echo} "upload ipa to itunesconnect for testflight done $?"
