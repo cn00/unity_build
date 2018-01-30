@@ -1,0 +1,167 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>TARGET_TYPE</name>
+          <description>ipa_and_assetbundle =&gt;  ipa 安装包和资源包
+ipa =&gt; 构建 ipa 安装包
+assetbundle =&gt; 构建资源包</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>ipa</string>
+              <string>assetbundle</string>
+              <string>ipa_and_assetbundle</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>A3Channel</name>
+          <description>选择连接哪个渠道服务器
+在 AppBoot.cs:A3Channel 枚举中列出</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>ios_bili_test#开发测试</string>
+              <string>ios_bili_qa#QA回归测试</string>
+              <string>ios_bili_tstest#探索性测试</string>
+              <string>ios_bili_yc#云测,兼容性测试</string>
+              <string>ios_bili_ts#iOS 提审</string>
+              <string>ios_bili_cb1#App Store</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>configuration</name>
+          <description>Debug 将打印所有日志
+Release 将只打印错误</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>Debug</string>
+              <string>Release</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>ExportIOSProj</name>
+          <description>重新导出 ios 工程, 仅构建安装包有效</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>XcodeArchive</name>
+          <description>构建 iOS 归档, 仅构建安装包有效</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>ExportIpa</name>
+          <description>导出 ipa 安装包, 仅构建安装包有效</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>IncrBuildNo</name>
+          <description>自增构建序号, 仅构建安装包有效</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>LocalTest</name>
+          <description>勾选为对内测试, 需要奇数构建序号, 仅构建安装包有效</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>IncrMajorVersion</name>
+          <description>主版本号加一 [(v1+1).v2.v3], 仅构建安装包有效</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>IncrMinorVersion</name>
+          <description>次版本号加一 [v1.(v2+1).v3], 仅构建安装包有效</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>IncrPatchVersion</name>
+          <description>补丁版本号加一 [v1.v2.(v3+1)], 仅构建安装包有效</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>AutoCommit</name>
+          <description>自动修改版本号, 构建序号等操作后将修改提交到 svn</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>UploadFtp</name>
+          <description>上传安装包到 FTP 归档, 仅构建安装包有效</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>UploadProduct</name>
+          <description>构建后上传 ipa 到 ituneconnect 准备 Testflight 测试
+或 AssetBundle 到 OSS 对象存储</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>OssBucketRoot</name>
+          <description>阿里云对象存储 Bucket 前缀路径, 路径不存在将自动创建</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>oss://a3-prod-patch-oss</string>
+              <string>oss://a3-dev-patch-oss</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>KillUnity</name>
+          <description>如果当前工作空间已有一个 Unity 正在运行则需强制退出此 Unity 进程</description>
+          <defaultValue>true</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.scm.SubversionSCM" plugin="subversion@2.10.2">
+    <locations>
+      <hudson.scm.SubversionSCM_-ModuleLocation>
+        <remote>http://192.168.8.35:81/svn/A3/trunk/client/Unity</remote>
+        <credentialsId>5c08ec0b-9a0f-440c-837b-a7a852f76060</credentialsId>
+        <local>.</local>
+        <depthOption>infinity</depthOption>
+        <ignoreExternalsOption>true</ignoreExternalsOption>
+      </hudson.scm.SubversionSCM_-ModuleLocation>
+    </locations>
+    <excludedRegions></excludedRegions>
+    <includedRegions></includedRegions>
+    <excludedUsers></excludedUsers>
+    <excludedRevprop></excludedRevprop>
+    <excludedCommitMessages></excludedCommitMessages>
+    <workspaceUpdater class="hudson.scm.subversion.NoopUpdater"/>
+    <ignoreDirPropChanges>false</ignoreDirPropChanges>
+    <filterChangelog>false</filterChangelog>
+    <quietOperation>true</quietOperation>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>set +x
+source ~/.bash_profile
+
+svn update --depth infinity . --username jenkins --password jenkins
+
+if [[ &quot;${TARGET_TYPE}&quot; = &quot;ipa_and_assetbundle&quot; ]];then
+	genIpa -RKE
+    genAB -KB
+elif [[ &quot;${TARGET_TYPE}&quot; = &quot;ipa&quot; ]];then
+	genIpa -RKE
+elif [[ &quot;${TARGET_TYPE}&quot; = &quot;assetbundle&quot; ]];then
+	genAB -KB
+fi</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>
