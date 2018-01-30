@@ -62,6 +62,7 @@ public class FGVersion
 
 }
 
+[ExecuteInEditMode]
 public class BuildScript
 {
     #region Common
@@ -69,7 +70,7 @@ public class BuildScript
     static string[] SCENES = FindEnabledEditorScenes();
     static string APP_NAME = "game";
     static string DATETIME = DateTime.Now.ToString("yyyy_MM_dd-HH_mm_ss");
-    static string TARGET_DIR = "bin";
+    static string TARGET_DIR = "bin/";
 
     const string BundleWorkingSpace = "AssetBundle/";
 
@@ -275,6 +276,8 @@ public class BuildScript
     [MenuItem("Build/Android_APK")]
     static void BuildAndroidApk()
     {
+        AssetBundleBuildLocalStreamingAsset.Build();
+
         var version = new FGVersion(PlayerSettings.bundleVersion);
         // TODO: open this when release
         // version.Minor += 1;
@@ -283,7 +286,7 @@ public class BuildScript
         PlayerSettings.Android.bundleVersionCode += 1;
         var versionCode = PlayerSettings.Android.bundleVersionCode;
 
-        string target_dir = TARGET_DIR + "/" + APP_NAME + "-" + PlayerSettings.bundleVersion + "-" + versionCode + ".apk";
+        string target_dir = TARGET_DIR + APP_NAME + ".apk";
         GenericBuild(SCENES, target_dir, BuildTargetGroup.Android, BuildTarget.Android, BuildOptions.None);
     }
 
@@ -304,7 +307,11 @@ public class BuildScript
         // add manualy or outer script
         // PlayerSettings.iOS.buildNumber = (int.Parse(PlayerSettings.iOS.buildNumber) + 1).ToString();
 
-        string target_dir = "ios.proj";
+        string target_dir = Environment.GetEnvironmentVariable("IosProjDir");
+        if (string.IsNullOrEmpty(target_dir))
+        {
+            target_dir = "ios.proj";
+        }
         var option = BuildOptions.EnableHeadlessMode | BuildOptions.SymlinkLibraries | BuildOptions.Il2CPP;
         version.Patch = 0;
         if(Environment.GetEnvironmentVariable("configuration") == "Release")

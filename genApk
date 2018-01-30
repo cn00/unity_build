@@ -284,10 +284,10 @@ function DoUpdateConfig()
     fi
 
     if [[ "${AutoCommit}x" = "truex" ]];then
-        DoCommit "${projectSettingAsset}" "auto upodate buildNumber:${NewBuildNumber}"
+        DoCommit "${projectSettingAsset}" "auto upodate Android VersionCode:${NewBuildNumber}"
     fi
 
-    ${echo} "buildNumber: ${buildNumber} => ${NewBuildNumber}"
+    ${echo} "VersionCode: ${buildNumber} => ${NewBuildNumber}"
 }
 
 function DoUploadFtp()

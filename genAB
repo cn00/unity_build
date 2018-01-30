@@ -6,7 +6,7 @@ function ResetExitOnErr()
 }
 function ResetDebug()
 {
-    set -x
+    set +x
 }
 
 if [[ "${#@}" = "0" ]];then
@@ -64,6 +64,10 @@ while true;do
     esac
 done
 
+set +x
+source ~/.bash_pw
+ResetDebug
+
 aloss="${aloss-aliyuncli oss}"
 
 BuildAB="${BuildAB-false}"
@@ -100,8 +104,6 @@ if [[ ! -d "Assets" ]]; then
    exit 1
 fi
 
-source ~/.bash_pw
-
 function DoBuildAB()
 {
 	set +e
@@ -134,13 +136,17 @@ function DoUploadOss()
 {
 	pushd "AssetBundle/Main"
 
+    local logout="/dev/null"
+    if [[ "${JENKINS_HOME}x" = "x" ]];then
+        logout="/dev/stdout"
+    fi
     ${echo} "Upload to oss ..."
-    local bucketPath="${OssBucketRoot}/${A3Channel/*_}/master/"
-	ls | while read l;do
+    local bucketPath="${OssBucketRoot}/${A3Channel/*_}/master"
+	ls -r | while read l;do
         ${echo} "oss putting ${l} => ${bucketPath}/${l} ..."
 		$aloss UploadDisk "${l}" "${bucketPath}/" \
             --content_type "application/octet-stream" \
-            --device_id 1 #> /dev/null
+            --device_id 1 > "${logout}"
 	done
 
     ${echo} "Upload to oss done"
@@ -148,6 +154,10 @@ function DoUploadOss()
 }
 
 ################################ main ################################
+
+set +x
+source ~/.bash_pw
+ResetDebug
 
 ${echo} "Build AssetBundle? ${BuildAB}"
 if [[ "${BuildAB}x" = "truex" ]];then
