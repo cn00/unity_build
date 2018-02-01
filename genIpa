@@ -62,7 +62,7 @@ if [[ ! -d "Assets" ]]; then
    exit 1
 fi
 
-temp=$(getopt -o CDFRSKENUI:AP --long LocalTest,UploadFtp,Simulator,A3Channel:,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadProduct,Identify:,\
+temp=$(getopt -o CDFRSKENUI:AP --long LocalTest,UploadFtp,A3Channel:,Simulator,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadProduct,Identify:,\
 IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
@@ -179,6 +179,7 @@ IncrMinorVersion=${IncrMinorVersion-"false"}
 IncrPatchVersion=${IncrPatchVersion-"false"}
 Simulator="false"
 
+ShellDir=$(cd `dirname $0`;pwd)
 BasePath=$(cd `dirname .`;pwd)
 WORKSPACE="${WORKSPACE-${BasePath}}"
 export IosProjDir="ios.proj.${A3Channel/*_/}"
@@ -187,6 +188,7 @@ mkdir -p "${ProductDir}"
 
 SchemeName="Unity-iPhone"
 ArchiveName="game"
+Date=$(date "+%Y%m%d")
 DateTime=$(date "+%m%d%H%M")
 
 GitSvn="false"
@@ -211,23 +213,10 @@ ${echo} "${Green}Unity-iPhone package tool${Reset} >"
 
 function DoCommit()
 {
-    file="$1"
-    msg="$2"
-    
-    ${echo} "auto commit: ${msg} ${file}"
-    ${echo} "is Git-Svn repository? ${GitSvn}"
-    if [[ "${GitSvn}x" = "truex" ]];then
-        git add "${file}"
-        git commit -m "${msg}"
-        stashmsg=$(git stash)
-        git svn dcommit
-        ${echo} "is stashed something?"
-        if [[ "${stashmsg:0:5}" = "Saved" ]];then
-           git stash pop 
-        fi
-    else
-        svn commit --username "${svnuname}" --password "${svnpword}" -m "${msg}" "${file}"
-    fi
+    local file="$1"
+    local msg="$2"
+    local command="${ShellDir}/commit"
+    $command "${file}" "${msg}"
 }
 
 function DoExportIOSProj()
@@ -377,7 +366,7 @@ function DoExportIpa()
         if [[ -f "~/workspace/exportOptionsPlist.plist" ]];then
             ln "~/workspace/exportOptionsPlist.plist" "${exportOptionsPlist}"
         else
-            ${echo} "Can not find an ~/workspace/exportOptionsPlist.plist"
+            ${echo} "Can not find ~/workspace/exportOptionsPlist.plist"
             exit -1
         fi
     fi
@@ -409,8 +398,7 @@ function DoUploadFtp()
     fi
 
     local localFile="${ipa}"
-    local ftpPath="$2"
-    local ftpPath="${NewBundleVersion}/${A3Channel/*_/}/a3_${NewBundleVersion}_${DateTime}_${NewBuildNumber}.ipa"
+    local ftpPath="${NewBundleVersion}/${A3Channel/*_/}/a3-${NewBundleVersion}-${A3Channel}-${Date}-${NewBuildNumber}.ipa"
     curl -u ${ftpuname}:${ftppword} \
         --ftp-create-dirs \
         -T "${localFile}" \

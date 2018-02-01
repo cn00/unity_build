@@ -6,8 +6,18 @@ function ResetExitOnErr()
 }
 function ResetDebug()
 {
-    set +x
+    set -x
 }
+
+sysname=$(uname)
+sysname=${sysname:0:6}
+if [[ "${sysname}x" = "Darwinx" ]];then
+    Unity="Unity"
+    sed="gsed"
+else
+    sed="sed"
+    Unity="Unity"
+fi
 
 if [[ "${#@}" = "0" ]];then
 echo -e "usage: genAB [-BKUC] [-R [OssBucketRoot]] --A3Channel channel 
@@ -70,6 +80,10 @@ ResetDebug
 
 aloss="${aloss-aliyuncli oss}"
 
+ShellDir=$(cd `dirname $0`;pwd)
+BasePath=$(cd `dirname .`;pwd)
+WORKSPACE="${WORKSPACE-${BasePath}}"
+
 BuildAB="${BuildAB-false}"
 UploadProduct="${UploadProduct-false}"
 KillUnity="${KillUnity-false}" 
@@ -104,31 +118,57 @@ if [[ ! -d "Assets" ]]; then
    exit 1
 fi
 
+function DoCommit()
+{
+    local file="$1"
+    local msg="$2"
+    local command="${ShellDir}/commit"
+    $command "${file}" "${msg}"
+}
+
+function DoUpdateConfig()
+{
+    ${echo} "updatting AppAssetManager.cs ..."
+
+    local AppAssetManagerCS="Assets/Application/Script/System/App/SubClass/AppAssetManager.cs"
+    ${sed} -e '/public const string PlatformName\s*=/{s#=.*$#="'"${A3Channel}"'";#}' -i "${AppAssetManagerCS}"
+
+    # commit bundle build manifest
+    local buildManifest="Assets/Application/Editor/Project/AssetBundle/Work/${A3Channel}"
+    if [[ "${AutoCommit}x" = "truex" ]];then
+        DoCommit "${buildManifest}" "auto upodate bundle manifest ${A3Channel} "
+    fi
+    ${echo} "buildManifest: ${A3Channel}"
+}
+
 function DoBuildAB()
 {
 	set +e
     if [[ "${KillUnity}x" = "truex" ]];then
-        ${echo} "kill all unity"
-        killall Unity
+        ${echo} "kill unity"
+        ps -A | grep "Unity .*${WORKSPACE}" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
+        ps -A | grep "Unity$" | sed '/grep/d' | awk '{print $1}' | xargs -I % sudo kill -9 "%"
     fi
 	# ClearBuild
+    ${echo} "clean old build? ${Clean}"
 	if [[ "${Clean}x" = "truex" ]];then
-		Unity -projectPath "$(pwd)" \
-		        -quit \
-		        -batchmode \
-		        -executeMethod "Project.AssetBundleBuildManager.ClearBuildCli" \
-		        -logFile "/dev/stdout"
+        Unity -projectPath "${WORKSPACE}" \
+            -quit \
+            -batchmode \
+            -executeMethod "Project.AssetBundleBuildManager.ClearBuildCli" \
+            -logFile "/dev/stdout"
 		
-		\rm -rf "$(pwd)/Assets/Application/Editor/Project/AssetBundle/Work/"*
-		\rm -rf "$(pwd)/AssetBundle/"*
+		\rm -rf "${WORKSPACE}/Assets/Application/Editor/Project/AssetBundle/Work/"*
+		\rm -rf "${WORKSPACE}/AssetBundle/"*
 	fi
 
 	# BuildCli
-	Unity -projectPath "$(pwd)" \
-	        -quit \
-	        -batchmode \
-	        -executeMethod "Project.AssetBundleBuildManager.BuildCli" \
-	        -logFile "/dev/stdout"
+	local executeMethod "Project.AssetBundleBuildManager.BuildCli"
+	Unity -projectPath "${WORKSPACE}" \
+        -quit \
+        -batchmode \
+        -executeMethod "${executeMethod}" \
+        -logFile "/dev/stdout"
     ResetExitOnErr	
 }
 
@@ -154,17 +194,22 @@ function DoUploadOss()
 }
 
 ################################ main ################################
+function Main()
+{
+    set +x
+    source ~/.bash_pw
+    ResetDebug
 
-set +x
-source ~/.bash_pw
-ResetDebug
+    DoUpdateConfig
 
-${echo} "Build AssetBundle? ${BuildAB}"
-if [[ "${BuildAB}x" = "truex" ]];then
-    DoBuildAB
-fi
+    ${echo} "Build AssetBundle? ${BuildAB}"
+    if [[ "${BuildAB}x" = "truex" ]];then
+        DoBuildAB
+    fi
 
-${echo} "Upload AssetBundle to oss? ${UploadProduct}"
-if [[ "${UploadProduct}x" = "truex" ]];then
-	DoUploadOss
-fi
+    ${echo} "Upload AssetBundle to oss? ${UploadProduct}"
+    if [[ "${UploadProduct}x" = "truex" ]];then
+        DoUploadOss
+    fi
+}
+Main
