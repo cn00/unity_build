@@ -229,6 +229,8 @@ function DoExportIOSProj()
     fi
     ResetExitOnErr
 
+    \rm -rf "${IosProjDir}"/*
+
     local executeMethod="BuildScript.ExportIOSProj"
     if [[ "${Simulator}x" = "truex" ]];then
         executeMethod="BuildScript.ExportIOSProjSim"
@@ -332,15 +334,17 @@ function DoXcodeArchive()
     DoUnlockKeychain
 
     local OTHER_LDFLAGS="-ObjC -lresolv -weak_framework CoreMotion -weak-lSystem -Wl -undefined dynamic_lookup"
+    local LD_RUNPATH_SEARCH_PATHS="@executable_path/Framewoks @loader_path/Frameworks"
     local archivePath="${ProductDir}/${ArchiveName}-${A3Channel/*_/}-${NewBundleVersion}-${DateTime}-${NewBuildNumber}.xcarchive"
-    xcodebuild -scheme "${SchemeName}" \
+    xcodebuild archive \
+        -scheme "${SchemeName}" \
         -configuration "${configuration}" \
-        archive -archivePath "${archivePath}" \
+        -archivePath "${archivePath}" \
         -allowProvisioningUpdates \
         OTHER_LDFLAGS="${OTHER_LDFLAGS}" \
         PRODUCT_BUNDLE_IDENTIFIER="com.bilibili.a3" \
         SWIFT_VERSION=4.0 \
-        LD_RUNPATH_SEARCH_PATHS="@executable_path/Framewoks @loader_path/Frameworks" \
+        LD_RUNPATH_SEARCH_PATHS="${LD_RUNPATH_SEARCH_PATHS}" \
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES="YES" \
         ENABLE_BITCODE="NO" \
         DEVELOPMENT_TEAM="UL9WJVVZ42"
@@ -398,7 +402,7 @@ function DoUploadFtp()
     fi
 
     local localFile="${ipa}"
-    local ftpPath="${NewBundleVersion}/${A3Channel/*_/}/a3-${NewBundleVersion}-${A3Channel}-${Date}-${NewBuildNumber}.ipa"
+    local ftpPath="${NewBundleVersion}/${A3Channel/*_/}/a3-${NewBundleVersion}-ios-${A3Channel/*_/}-${Date}-${NewBuildNumber}.ipa"
     curl -u ${ftpuname}:${ftppword} \
         --ftp-create-dirs \
         -T "${localFile}" \
