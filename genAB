@@ -1,5 +1,4 @@
 #!/bin/sh
-
 function ResetExitOnErr()
 {
     set -e
@@ -8,7 +7,6 @@ function ResetDebug()
 {
     set -x
 }
-
 sysname=$(uname)
 sysname=${sysname:0:6}
 if [[ "${sysname}x" = "Darwinx" ]];then
@@ -18,7 +16,6 @@ else
     sed="sed"
     Unity="Unity"
 fi
-
 if [[ "${#@}" = "0" ]];then
 echo -e "usage: genAB [-BKUC] [-R [OssBucketRoot]] --A3Channel channel 
      -B|--BuildAB               Build asset bundle
@@ -29,14 +26,12 @@ echo -e "usage: genAB [-BKUC] [-R [OssBucketRoot]] --A3Channel channel
  "
      exit 1
  fi
-
 temp=$(getopt -o BKUR:C --long BuildAB,Kill,UploadProduct,OssBucketRoot:Clean,A3Channel: -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
     exit 1 
 fi
 eval set -- "$temp"
-
 while true;do
     case "$1" in
     --A3Channel)
@@ -73,17 +68,14 @@ while true;do
     ;;
     esac
 done
-
 set +x
 source ~/.bash_pw
 ResetDebug
-
 aloss="${aloss-aliyuncli oss}"
-
 ShellDir=$(cd `dirname $0`;pwd)
 BasePath=$(cd `dirname .`;pwd)
 WORKSPACE="${WORKSPACE-${BasePath}}"
-
+WORKSPACE=$(cd ${WORKSPACE};pwd)
 BuildAB="${BuildAB-false}"
 UploadProduct="${UploadProduct-false}"
 KillUnity="${KillUnity-false}" 
@@ -91,7 +83,6 @@ Clean="${Clean-false}"
 OssBucketRoot="${OssBucketRoot-${ossa3prod}}"
 A3Channel=${A3Channel-"ios_bili_cb1"}
 A3Channel=${A3Channel%#*}
-
 function SetColor()
 {
     Reset='\033[00m'
@@ -104,20 +95,17 @@ function SetColor()
     Bold='\033[1m'
     Underline='\033[4m'
 }
-
 if [[ "${JENKINS_HOME}x" = "x" ]];then
     SetColor
     echo="echo -e"
 else
     echo="echo"
 fi
-
 if [[ ! -d "Assets" ]]; then
    ${echo} "${Red}Not an Unity project dir${Reset}" 
    ${echo} "${Yellow}Place run in an Unity project dir with an \"Assets\"${Reset}"
    exit 1
 fi
-
 function DoCommit()
 {
     local file="$1"
@@ -125,14 +113,11 @@ function DoCommit()
     local command="${ShellDir}/commit"
     $command "${file}" "${msg}"
 }
-
 function DoUpdateConfig()
 {
     ${echo} "updatting AppAssetManager.cs ..."
-
     local AppAssetManagerCS="Assets/Application/Script/System/App/SubClass/AppAssetManager.cs"
     ${sed} -e '/public const string PlatformName\s*=/{s#=.*$#="'"${A3Channel}"'";#}' -i "${AppAssetManagerCS}"
-
     # commit bundle build manifest
     local buildManifest="Assets/Application/Editor/Project/AssetBundle/Work/${A3Channel}"
     if [[ "${AutoCommit}x" = "truex" ]];then
@@ -140,7 +125,6 @@ function DoUpdateConfig()
     fi
     ${echo} "buildManifest: ${A3Channel}"
 }
-
 function DoBuildAB()
 {
 	set +e
@@ -157,13 +141,11 @@ function DoBuildAB()
             -batchmode \
             -executeMethod "Project.AssetBundleBuildManager.ClearBuildCli" \
             -logFile "/dev/stdout"
-		
 		\rm -rf "${WORKSPACE}/Assets/Application/Editor/Project/AssetBundle/Work/"*
 		\rm -rf "${WORKSPACE}/AssetBundle/"*
 	fi
-
 	# BuildCli
-	local executeMethod "Project.AssetBundleBuildManager.BuildCli"
+	local executeMethod="Project.AssetBundleBuildManager.BuildCli"
 	Unity -projectPath "${WORKSPACE}" \
         -quit \
         -batchmode \
@@ -171,11 +153,9 @@ function DoBuildAB()
         -logFile "/dev/stdout"
     ResetExitOnErr	
 }
-
 function DoUploadOss()
 {
 	pushd "AssetBundle/Main"
-
     local logout="/dev/null"
     if [[ "${JENKINS_HOME}x" = "x" ]];then
         logout="/dev/stdout"
@@ -188,25 +168,20 @@ function DoUploadOss()
             --content_type "application/octet-stream" \
             --device_id 1 > "${logout}"
 	done
-
     ${echo} "Upload to oss done"
     popd
 }
-
 ################################ main ################################
 function Main()
 {
     set +x
     source ~/.bash_pw
     ResetDebug
-
     DoUpdateConfig
-
     ${echo} "Build AssetBundle? ${BuildAB}"
     if [[ "${BuildAB}x" = "truex" ]];then
         DoBuildAB
     fi
-
     ${echo} "Upload AssetBundle to oss? ${UploadProduct}"
     if [[ "${UploadProduct}x" = "truex" ]];then
         DoUploadOss
