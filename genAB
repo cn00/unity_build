@@ -117,12 +117,8 @@ function DoUpdateConfig()
 {
     ${echo} "updatting AppAssetManager.cs ..."
     local AppAssetManagerCS="Assets/Application/Script/System/App/SubClass/AppAssetManager.cs"
-    ${sed} -e '/public const string PlatformName\s*=/{s#=.*$#="'"${A3Channel}"'";#}' -i "${AppAssetManagerCS}"
-    # commit bundle build manifest
-    local buildManifest="Assets/Application/Editor/Project/AssetBundle/Work/${A3Channel}"
-    if [[ "${AutoCommit}x" = "truex" ]];then
-        DoCommit "${buildManifest}" "auto upodate bundle manifest ${A3Channel} "
-    fi
+    ${sed} -e '/public const string A3Channel\s*=/{s#=.*$#="'"${A3Channel}"'";#}' -i "${AppAssetManagerCS}"
+    DoCommit "${AppAssetManagerCS}" "#${BUILD_NUMBER} build AssetBundle ${A3Channel}"
     ${echo} "buildManifest: ${A3Channel}"
 }
 function DoBuildAB()
@@ -152,6 +148,11 @@ function DoBuildAB()
         -executeMethod "${executeMethod}" \
         -logFile "/dev/stdout"
     ResetExitOnErr	
+    # commit bundle build manifest
+    local buildManifest="Assets/Application/Editor/Project/AssetBundle/Work/${A3Channel}"
+    if [[ "${AutoCommit}x" = "truex" ]];then
+        DoCommit "${buildManifest}" "auto upodate bundle manifest ${A3Channel} "
+    fi
 }
 function DoUploadOss()
 {

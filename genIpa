@@ -17,6 +17,7 @@ if [[ "${#@}" = "0" ]];then
     -R|--Release            Release build
     --A3Channel string      Channel
     --LocalTest             true for odd buildNumber for LocalTest
+    --Clean                 Clean old project
     -E|--ExportIOSProj      Export iOS project
     -S|--Simulator          iOS simulator project
     -N|--IncrBuildNo        Increase build nomber
@@ -62,7 +63,7 @@ if [[ ! -d "Assets" ]]; then
    exit 1
 fi
 
-temp=$(getopt -o CDFRSKENUI:AP --long LocalTest,UploadFtp,A3Channel:,Simulator,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadProduct,Identify:,\
+temp=$(getopt -o CDFRSKENUI:AP --long Clean:LocalTest,UploadFtp,A3Channel:,Simulator,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadProduct,Identify:,\
 IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
@@ -78,6 +79,10 @@ while true;do
     ;;
     --LocalTest)
         LocalTest="true";
+        shift
+    ;;
+    --Clean)
+        Clean="true";
         shift
     ;;
     -P|--ExportIpa)
@@ -159,6 +164,7 @@ ResetDebug
 ## these options may pass by jenkins
 XcodeArchive=${XcodeArchive-"false"}
 LocalTest=${LocalTest-"true"}
+Clean=${Clean-"false"}
 ExportIpa=${ExportIpa-"false"}
 export configuration=${configuration-"Release"} # export let mono csharp can catch this
 ExportIOSProj=${ExportIOSProj-"false"} 
@@ -172,17 +178,23 @@ NewBuildNumber="1"
 A3Channel=${A3Channel-"ios_bili_cb1"}
 A3Channel=${A3Channel%#*}
 
+BUILD_NUMBER=${BUILD_NUMBER-"0"}
 AutoCommit=${AutoCommit-"false"}
 IncrBuildNo=${IncrBuildNo-"false"}
 IncrMajorVersion=${IncrMajorVersion-"false"}
 IncrMinorVersion=${IncrMinorVersion-"false"}
 IncrPatchVersion=${IncrPatchVersion-"false"}
-Simulator="false"
+Simulator=${Simulator-"false"}
 
 ShellDir=$(cd `dirname $0`;pwd)
 BasePath=$(cd `dirname .`;pwd)
 WORKSPACE="${WORKSPACE-${BasePath}}"
-export IosProjDir="ios.proj.${A3Channel/*_/}"
+WORKSPACE=$(cd ${WORKSPACE};pwd)
+if [[ "${Simulator}x" = "truex" ]];then
+    export IosProjDir="ios.proj.${A3Channel/*_/}.sim"
+else
+    export IosProjDir="ios.proj.${A3Channel/*_/}"
+fi
 ProductDir="${WORKSPACE}/bin"
 mkdir -p "${ProductDir}"
 
@@ -236,6 +248,11 @@ function DoExportIOSProj()
         executeMethod="BuildScript.ExportIOSProjSim"
     fi
 
+    ${echo} "Clean? ${Clean}"
+    if [[ "${Clean}x" = "truex" ]];then
+        \rm -rf "${IosProjDir}"/*
+    fi
+
     local logout="/dev/stdout"
     mkdir -p "log"
     ${echo} "Export IOS Proj ..."
@@ -245,6 +262,9 @@ function DoExportIOSProj()
         -executeMethod "${executeMethod}" \
         -logFile "${logout}" | \
         tee "log/unity-${DateTime}.log"
+
+    ${echo} "patch native code ..."
+    patch -bR "${IosProjDir}/Classes/UnityAppController.mm" "${WORKSPACE}/iospatch/UnityAppController.mm.patch"
 
     ${echo} "Export IOS Proj done $?"
 }
@@ -262,6 +282,11 @@ function DoUpdateConfig()
     ${sed} -e '/m_A3Channel/{s#\(:\s*\).*#\1'"${a3channelNo}"'#}' -i "${appbootunity}"
     ${echo} "A3Channel: ${A3Channel}=${a3channelNo}"
     
+   ${echo} "updatting AppAssetManager.cs ..."
+   local AppAssetManagerCS="Assets/Application/Script/System/App/SubClass/AppAssetManager.cs"
+   ${sed} -e '/public const string A3Channel\s*=/{s#=.*$#="'"${A3Channel}"'";#}' -i "${AppAssetManagerCS}"
+   ${echo} "buildManifest: ${A3Channel}"
+
     ## bundle identifier
     #${sed} -e '/CFBundleIdentifier/{n;s#>.*<#>'${ACT_PACKAGE_NAME}'<#g}' -i "${projectSettingAsset}"
  
@@ -317,7 +342,9 @@ function DoUpdateConfig()
     fi
 
     if [[ "${AutoCommit}x" = "truex" ]];then
-        DoCommit "${projectSettingAsset}" "auto upodate iOS ${A3Channel/*_/} buildNumber:${NewBuildNumber}"
+        DoCommit "${appbootunity}" "#${BUILD_NUMBER} iOS ${A3Channel}"
+        DoCommit "${AppAssetManagerCS}" "#${BUILD_NUMBER} iOS ${A3Channel}"
+        DoCommit "${projectSettingAsset}" "#${BUILD_NUMBER} iOS ${A3Channel/*_/} buildNumber:${NewBuildNumber}"
     fi
     ${echo} "buildNumber: ${buildNumber} => ${NewBuildNumber}"
 }
