@@ -58,8 +58,8 @@ else
 fi
 
 if [[ ! -d "Assets" ]]; then
-   ${echo} "${Red}Error: Not an Unity project dir${Reset}" 
-   ${echo} "${Yellow}Place run genIpa in an Unity project WORKSPACE with an \"Assets\"${Reset}"
+    ${echo} "${Red}Error: Not an Unity project dir $(pwd)${Reset}" 
+    ${echo} "${Yellow}Place run genIpa in an Unity project WORKSPACE with an \"Assets\"${Reset}"
    exit 1
 fi
 
@@ -264,7 +264,7 @@ function DoExportIOSProj()
         tee "log/unity-${DateTime}.log"
 
     ${echo} "patch native code ..."
-    patch -bR "${IosProjDir}/Classes/UnityAppController.mm" "${WORKSPACE}/iospatch/UnityAppController.mm.patch"
+    patch -b "${IosProjDir}/Classes/UnityAppController.mm" "${WORKSPACE}/iospatch/UnityAppController.mm.patch"
 
     ${echo} "Export IOS Proj done $?"
 }
@@ -276,16 +276,16 @@ function DoUpdateConfig()
     local projectSettingAsset="ProjectSettings/ProjectSettings.asset"
 
     # A3Channel
-    local appbootcs="Assets/Application/Script/System/App/AppBoot.cs"
-    local appbootunity="Assets/Application/Scene/boot.unity"
+    local appbootcs="Assets/Application/Script/System/App/SubClass/AppVersionData.cs"
+    local appbootunity="Assets/Resources/System/version.asset"
     local a3channelNo=$(${sed} -n '/'"${A3Channel}"'\s*=/s#\s*'"${A3Channel}"'\s*=\s*\([0-9]\+\).*#\1#p' "${appbootcs}")
     ${sed} -e '/m_A3Channel/{s#\(:\s*\).*#\1'"${a3channelNo}"'#}' -i "${appbootunity}"
     ${echo} "A3Channel: ${A3Channel}=${a3channelNo}"
     
-   ${echo} "updatting AppAssetManager.cs ..."
-   local AppAssetManagerCS="Assets/Application/Script/System/App/SubClass/AppAssetManager.cs"
-   ${sed} -e '/public const string A3Channel\s*=/{s#=.*$#="'"${A3Channel}"'";#}' -i "${AppAssetManagerCS}"
-   ${echo} "buildManifest: ${A3Channel}"
+  #${echo} "updatting AppAssetManager.cs ..."
+  #local AppAssetManagerCS="Assets/Application/Script/System/App/SubClass/AppAssetManager.cs"
+  #${sed} -e '/public const string A3Channel\s*=/{s#=.*$#="'"${A3Channel}"'";#}' -i "${AppAssetManagerCS}"
+  #${echo} "buildManifest: ${A3Channel}"
 
     ## bundle identifier
     #${sed} -e '/CFBundleIdentifier/{n;s#>.*<#>'${ACT_PACKAGE_NAME}'<#g}' -i "${projectSettingAsset}"
@@ -343,7 +343,7 @@ function DoUpdateConfig()
 
     if [[ "${AutoCommit}x" = "truex" ]];then
         DoCommit "${appbootunity}" "#${BUILD_NUMBER} iOS ${A3Channel}"
-        DoCommit "${AppAssetManagerCS}" "#${BUILD_NUMBER} iOS ${A3Channel}"
+        #DoCommit "${AppAssetManagerCS}" "#${BUILD_NUMBER} iOS ${A3Channel}"
         DoCommit "${projectSettingAsset}" "#${BUILD_NUMBER} iOS ${A3Channel/*_/} buildNumber:${NewBuildNumber}"
     fi
     ${echo} "buildNumber: ${buildNumber} => ${NewBuildNumber}"
@@ -413,7 +413,6 @@ function DoExportIpa()
 
     popd
     ${echo} "export ipa done ${ipa/\/Users\/$(whoami)\/\.jenkins/http://a3.local} $?"
-
 }
 
 function DoUploadFtp()
@@ -442,7 +441,6 @@ function DoUploadFtp()
 function DoUploadIpa()
 {
     ${echo} "upload ipa to itunesconnect for testflight ..."
-    pushd "${IosProjDir}"
 
     local ipa="$(cat ${ProductDir}/lastIpaPath)"
 
@@ -454,7 +452,6 @@ function DoUploadIpa()
     local altool="altool"
     ${altool} --upload-app -f "${ipa}" -u "${appleaccount}" -p "${applepsword}" > "${logout}"
 
-    popd
     ${echo} "upload ipa to itunesconnect for testflight done $?"
 }
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 
 ## start jenkins
-function StartJenkins(){
+function StartJenkins()
+{
     echo "start jenkins ..."
     mkdir -p ~/jenkins
     pushd ~/jenkins
@@ -12,18 +13,20 @@ function StartJenkins(){
 }
 
 ## start http:80
-function StartHttp80(){
+function StartHttp80()
+{
     echo "start http ..."
     mkdir -p ~/http
-    #pushd ~/http
+    pushd ~/workspace
     killN http.server > /dev/null
     nohup sudo python3 -m http.server 80 > ~/http/nohup.http 2>&1 &
-    #popd
+    popd
     echo "start http end $?\n"
 }
 
 ## start CacheServer
-function StartCacheServer(){
+function StartCacheServer()
+{
     echo "start CacheServer ..."
     pushd ~/.jenkins/workspace/CacheServer
     killN node
@@ -31,11 +34,58 @@ function StartCacheServer(){
     popd 
     echo "start CacheServer done"
 }
+
+## start mysql server
+function StartMysql()
+{
+    echo "start mysql server ..."
+    if [[ "$(docker container ls -aqf name=mysql)x" = "x" ]];then
+        docker run -d -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD="pass"  -e MYSQL_DATABASE=redmine mysql
+    elif [[ "$(docker ps -qf name=mysql)x" = "x" ]];then
+        docker start mysql
+    fi
+    echo "start CacheServer done"
+}
+
+## start redmine
+function StartRedmine()
+{
+    echo "start redmine ..."
+    if [[ "$(docker container ls -aqf name=redmine)x" = "x" ]];then
+        docker run -d -p 3000:3000 --name redmine -e MYSQL_ROOT_PASSWORD="pass" --link mysql:mysql redmine
+    elif [[ "$(docker ps -qf name=redmine)x" = "x" ]];then
+        docker start server-redmine
+    fi
+    echo "start CacheServer done"
+}
+
+## start phpmyadmin
+function StartPhpMyAdmin()
+{
+    echo "start phpmyadmin ..."
+    if [[ "$(docker container ls -aqf name=phpmyadmin)x" = "x" ]];then
+        docker run -d -p 8000:80 --name phpmyadmin --link mysql:db phpmyadmin/phpmyadmin
+    elif [[ "$(docker ps -qf name=phpmyadmin)x" = "x" ]];then
+        docker start phpmyadmin
+    fi
+    echo "start phpmyadmin done"
+}
+
 ########## main ########## 
 
-#StartJenkins
+function main()
+{
+    StartJenkins
 
-StartHttp80
+    StartMysql
 
-StartCacheServer
+    StartRedmine
+
+    StartPhpMyAdmin
+
+    StartHttp80
+
+    StartCacheServer
+}
+main
 
