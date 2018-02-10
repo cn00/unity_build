@@ -1,0 +1,77 @@
+*** UnityAppController.mm	2018-02-09 16:59:56.000000000 +0800
+--- UnityAppController.ok.mm	2018-02-09 16:44:27.000000000 +0800
+***************
+*** 32,37 ****
+--- 32,39 ----
+  #include "Unity/GlesHelper.h"
+  #include "PluginBase/AppDelegateListener.h"
+  #include "UTNotificationsTools.h"
++ #import <sys/utsname.h>
++ #import "BLGameSdk.h"
+  
+  // Set this to 1 to force single threaded rendering
+  #define UNITY_FORCE_DIRECT_RENDERING 0
+***************
+*** 230,237 ****
+--- 232,248 ----
+  
+  #endif
+  
++ - (BOOL)application:(UIApplication *)application openURL:(nonnull NSURL *)url options:(nonnull NSDictionary<NSString *,id> *)options {
++     
++     [[BLGameSdk defaultGameSdk] didGetToken:url];
++     
++     return YES;
++ }
++ 
+  - (BOOL)application:(UIApplication*)application openURL:(NSURL*)url sourceApplication:(NSString*)sourceApplication annotation:(id)annotation
+  {
++     [[BLGameSdk defaultGameSdk] didGetToken:url];
++ 
+      NSMutableArray* keys    = [NSMutableArray arrayWithCapacity: 3];
+      NSMutableArray* values  = [NSMutableArray arrayWithCapacity: 3];
+  
+***************
+*** 252,257 ****
+--- 263,275 ----
+  {
+      return YES;
+  }
++ - (NSString*)getDeviceVersion
++ {
++     struct utsname systemInfo;
++     uname(&systemInfo);
++     NSString *deviceVersion = [NSString stringWithCString:systemInfo.machine encoding:NSUTF8StringEncoding];
++     return deviceVersion;
++ }
+  
+  - (BOOL)application:(UIApplication*)application didFinishLaunchingWithOptions:(NSDictionary*)launchOptions
+  {
+***************
+*** 287,293 ****
+      [self selectRenderingAPI];
+      [UnityRenderingView InitializeForAPI: self.renderingAPI];
+  
+-     _window         = [[UIWindow alloc] initWithFrame: [UIScreen mainScreen].bounds];
+      _unityView      = [self createUnityView];
+  
+      [DisplayManager Initialize];
+--- 305,322 ----
+      [self selectRenderingAPI];
+      [UnityRenderingView InitializeForAPI: self.renderingAPI];
+  
++     // fit for iphonex
++     NSString *deviceVersion = [self getDeviceVersion];
++     if ([deviceVersion isEqualToString:@"iPhone10,3"] || [deviceVersion isEqualToString:@"iPhone10,6"])
++     {
++         CGRect bounds = CGRectMake(73, 0, 667, 375);
++         _window  = [[UIWindow alloc] initWithFrame:bounds];
++     }
++     else
++     {
++         _window = [[UIWindow alloc] initWithFrame: [UIScreen mainScreen].bounds];
++     }
++
+      _unityView      = [self createUnityView];
+  
+      [DisplayManager Initialize];
