@@ -163,7 +163,7 @@ ResetDebug
 
 ## these options may pass by jenkins
 XcodeArchive=${XcodeArchive-"false"}
-LocalTest=${LocalTest-"true"}
+LocalTest=${LocalTest-"false"}
 Clean=${Clean-"false"}
 ExportIpa=${ExportIpa-"false"}
 export configuration=${configuration-"Release"} # export let mono csharp can catch this
@@ -262,11 +262,11 @@ function DoExportIOSProj()
         -executeMethod "${executeMethod}" \
         -logFile "${logout}" | \
         tee "log/unity-${DateTime}.log"
+    ${echo} "Export IOS Proj done $?"
 
     ${echo} "patch native code ..."
     patch -b "${IosProjDir}/Classes/UnityAppController.mm" "${WORKSPACE}/iospatch/UnityAppController.mm.patch"
-
-    ${echo} "Export IOS Proj done $?"
+    ${echo} "patch native code $?"
 }
 
 
@@ -370,7 +370,7 @@ function DoXcodeArchive()
         -allowProvisioningUpdates \
         OTHER_LDFLAGS="${OTHER_LDFLAGS}" \
         PRODUCT_BUNDLE_IDENTIFIER="com.bilibili.a3" \
-        SWIFT_VERSION=4.0 \
+        SWIFT_VERSION=3.2 \
         LD_RUNPATH_SEARCH_PATHS="${LD_RUNPATH_SEARCH_PATHS}" \
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES="YES" \
         ENABLE_BITCODE="NO" \
@@ -394,6 +394,7 @@ function DoExportIpa()
     local exportPath="${ProductDir}"
     local exportOptionsPlist="${WORKSPACE}/exportOptionsPlist.plist"
     if [[ ! -f "${exportOptionsPlist}" ]];then
+        
         if [[ -f "~/workspace/exportOptionsPlist.plist" ]];then
             ln "~/workspace/exportOptionsPlist.plist" "${exportOptionsPlist}"
         else
