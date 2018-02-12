@@ -1,19 +1,21 @@
-*** UnityAppController.mm	2018-02-09 16:59:56.000000000 +0800
---- UnityAppController.ok.mm	2018-02-09 16:44:27.000000000 +0800
+*** Classes/UnityAppController.origin.mm	2018-02-09 16:49:42.000000000 +0800
+--- Classes/UnityAppController.mm	2018-02-11 17:44:27.000000000 +0800
 ***************
-*** 32,37 ****
---- 32,39 ----
-  #include "Unity/GlesHelper.h"
+*** 33,38 ****
+--- 33,42 ----
   #include "PluginBase/AppDelegateListener.h"
   #include "UTNotificationsTools.h"
+  
 + #import <sys/utsname.h>
 + #import "BLGameSdk.h"
-  
++ #import "BLDataSdk.h"
++ 
   // Set this to 1 to force single threaded rendering
   #define UNITY_FORCE_DIRECT_RENDERING 0
+  
 ***************
 *** 230,237 ****
---- 232,248 ----
+--- 234,250 ----
   
   #endif
   
@@ -33,7 +35,7 @@
   
 ***************
 *** 252,257 ****
---- 263,275 ----
+--- 265,277 ----
   {
       return YES;
   }
@@ -56,12 +58,12 @@
       _unityView      = [self createUnityView];
   
       [DisplayManager Initialize];
---- 305,322 ----
+--- 307,324 ----
       [self selectRenderingAPI];
       [UnityRenderingView InitializeForAPI: self.renderingAPI];
   
 +     // fit for iphonex
-+     NSString *deviceVersion = [self getDeviceVersion];
++     NSString *deviceVersion = [self getDeviceVersion];//UIDevice.currentDevice.model; 
 +     if ([deviceVersion isEqualToString:@"iPhone10,3"] || [deviceVersion isEqualToString:@"iPhone10,6"])
 +     {
 +         CGRect bounds = CGRectMake(73, 0, 667, 375);
@@ -71,7 +73,31 @@
 +     {
 +         _window = [[UIWindow alloc] initWithFrame: [UIScreen mainScreen].bounds];
 +     }
-+
++ 
       _unityView      = [self createUnityView];
   
       [DisplayManager Initialize];
+***************
+*** 306,311 ****
+--- 337,345 ----
+  - (void)applicationDidEnterBackground:(UIApplication*)application
+  {
+      ::printf("-> applicationDidEnterBackground()\n");
++ 
++     //BLdata sdk
++     [[BLDataSdk sharedDataSdk] applicationDidEnterBackground];
+  }
+  
+  - (void)applicationWillEnterForeground:(UIApplication*)application
+***************
+*** 323,328 ****
+--- 357,365 ----
+  - (void)applicationDidBecomeActive:(UIApplication*)application
+  {
+      ::printf("-> applicationDidBecomeActive()\n");
++     
++     // bldata sdk
++     [[BLDataSdk sharedDataSdk] applicationDidBecomeActive];
+  
+      [self removeSnapshotView];
+  
