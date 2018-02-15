@@ -49,6 +49,14 @@ function SetColor()
     ResetDebug
 }
 
+function SafeSource()
+{
+    local inputf="$1"
+    set +x
+    source "${imputf}"
+    ResetDebug
+}
+
 if [[ "${JENKINS_HOME}x" = "x" ]];then
     ResetDebug
     SetColor
@@ -157,9 +165,8 @@ while true;do
     esac
 done
 
-set +x
-source ~/.bash_pw
-ResetDebug
+
+SafeSource ~/.bash_pw
 
 ## these options may pass by jenkins
 XcodeArchive=${XcodeArchive-"false"}
@@ -205,7 +212,7 @@ DateTime=$(date "+%m%d%H%M")
 
 GitSvn="false"
 set +e
-git svn info > /dev/null
+git svn info 2>&1 > /dev/null
 if [[ "$?" = "0" ]];then
     GitSvn="true"
 fi
