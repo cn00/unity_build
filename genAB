@@ -20,13 +20,14 @@ if [[ "${#@}" = "0" ]];then
 echo -e "usage: genAB [-BKUC] [-R [OssBucketRoot]] --A3Channel channel 
      -B|--BuildAB               Build asset bundle
      --A3Channel channel        A3Channel
+     -A|--UploadAll             true for all packages, false for today's packages only
      -K|--KillUnity             Kill Unity process
      -U|--UploadProduct         Upload asset bundle to oss
-     -R|--OssBucketRoot rname   bucket_root
- "
+     -R|--OssBucketRoot rname   bucket root
+"
      exit 1
  fi
-temp=$(getopt -o BKUR:C --long BuildAB,Kill,UploadProduct,OssBucketRoot:Clean,A3Channel: -- "$@")
+temp=$(getopt -o ABKUR:C --long UploadAll,BuildAB,Kill,UploadProduct,OssBucketRoot:Clean,A3Channel: -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
     exit 1 
@@ -37,6 +38,10 @@ while true;do
     --A3Channel)
         A3Channel="$2";
         shift 2
+    ;;
+    -A|--UploadAll)
+        UploadAll="true";
+        shift
     ;;
     -B|--BuildAB) 
         BuildAB="true"; 
@@ -77,6 +82,7 @@ BasePath=$(cd `dirname .`;pwd)
 WORKSPACE="${WORKSPACE-${BasePath}}"
 WORKSPACE=$(cd ${WORKSPACE};pwd)
 BuildAB="${BuildAB-false}"
+UploadAll="${UploadAll-false}"
 UploadProduct="${UploadProduct-false}"
 KillUnity="${KillUnity-false}" 
 Clean="${Clean-false}"
@@ -166,8 +172,13 @@ function DoUploadOss()
     fi
     ${echo} "Upload to oss ..."
     local bucketPath="${OssBucketRoot}/${A3Channel/*_}/master"
-	ls -r . | while read l;do
-        ${echo} "oss putting ${l} => ${bucketPath}/${l} ..."
+    # default: only upload today packages
+    local mask="-r -d iOS-$(date "+%y%m%d"|sed s/^.//)*"
+    if [[ "${UploadAll}x" = "truex" ]];then
+        mask="-r ."
+    fi
+	ls ${mask} | while read l;do
+        ${echo} "oss uploading ${l} => ${bucketPath}/${l} ..."
 		$aloss UploadDisk "${l}" "${bucketPath}/" \
             --content_type "application/octet-stream" \
             --device_id 1 > "${logout}"
