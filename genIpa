@@ -321,8 +321,19 @@ function DoUpdateConfig()
     ${echo} "bundleVersion: ${bundleVersion} => ${NewBundleVersion}"
     
     # buildNumber
+    local fiosBuildNumber="~/workspace/Global/iosBuildNumber"
+    if [[ -d "~/workspace/Global/" ]];then
+        mkdir -p "~/workspace/Global/"
+    fi
+    if [[ ! -f "${fiosBuildNumber}" ]];then
+        echo "0" > ${fiosBuildNumber}
+    fi
+    local lastBuildNumber="$(cat ${fiosBuildNumber})"
     local buildNumber=$(${sed} -n '/buildNumber/{n;s#^\s*.*:\s*##p}' "${projectSettingAsset}")
     buildNumber=${buildNumber-'0'}
+    if [[ ${buildNumber} < ${lastBuildNumber} ]];then
+        buildNumber=${lastBuildNumber}
+    fi
     NewBuildNumber=${buildNumber}
     ${echo} "Increase build number? ${IncrBuildNo}"
     if [[ "${IncrBuildNo}x" = "truex" ]];then
@@ -343,6 +354,7 @@ function DoUpdateConfig()
         fi
         ${sed} -e '/buildNumber/{n;s#\(:\s*\).*#\1'"${NewBuildNumber}"'#}' -i "${projectSettingAsset}"
     fi
+    echo "${NewBuildNumber}" > "${fiosBuildNumber}"
 
     if [[ "${AutoCommit}x" = "truex" ]];then
         DoCommit "${appbootunity}" "#${BUILD_NUMBER} iOS ${A3Channel}"
