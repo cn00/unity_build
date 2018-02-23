@@ -170,7 +170,7 @@ export configuration=${configuration-"Release"} # export let mono csharp can cat
 ExportIOSProj=${ExportIOSProj-"false"} 
 UploadProduct=${UploadProduct-"false"}
 UploadFtp=${UploadFtp-"false"}
-KillUnity=${KillUnity-"true"}
+KillUnity=${KillUnity-"false"}
 Identify=${Identify-"com.bilibili.a3"}
 
 NewBundleVersion="1.0.0"
@@ -261,7 +261,9 @@ function DoExportIOSProj()
         -batchmode \
         -executeMethod "${executeMethod}" \
         -logFile "${logout}" | \
-        tee "log/unity-${DateTime}.log"
+        tee "log/unity-${DateTime}.log" 
+        #grep -e ": error " -A5 -B5 
+
     ${echo} "Export IOS Proj done $?"
 
     ${echo} "patch native code ..."
