@@ -268,6 +268,7 @@ function DoExportIOSProj()
 
     ${echo} "patch native code ..."
     patch -b "${IosProjDir}/Classes/UnityAppController.mm" "${WORKSPACE}/iospatch/UnityAppController.mm.patch"
+    patch -b "${IosProjDir}/Classes/UI/UnityViewControllerBaseiOS.mm" "${WORKSPACE}/iospatch/UnityViewControllerBaseiOS.mm.patch"
     ${echo} "patch native code $?"
 }
 
