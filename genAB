@@ -19,6 +19,8 @@ fi
 if [[ "${#@}" = "0" ]];then
 echo -e "usage: genAB [-BKUC] [-R [OssBucketRoot]] --A3Channel channel 
      -B|--BuildAB               Build asset bundle
+     -C|--AutoCommit            Auto commit to repository
+     --Clean                 Clean old bundle
      --A3Channel channel        A3Channel
      -A|--UploadAll             true for all packages, false for today's packages only
      -K|--KillUnity             Kill Unity process
@@ -59,7 +61,11 @@ while true;do
         UploadProduct="true"; 
         shift
     ;;
-    -C|--Clean) 
+    -C|--AutoCommit)
+        AutoCommit="true";
+        shift
+    ;;
+    --Clean) 
         Clean="true"; 
         shift
     ;;
@@ -159,8 +165,9 @@ function DoBuildAB()
     ResetExitOnErr	
     # commit bundle build manifest
     local buildManifest="Assets/Application/Editor/Project/AssetBundle/Work/${A3Channel}"
+    local versionAsset="Assets/Resources/System/version.asset"
     if [[ "${AutoCommit}x" = "truex" ]];then
-        DoCommit "${buildManifest}" "auto upodate bundle manifest ${A3Channel} "
+        DoCommit "${buildManifest} ${versionAsset}" "auto upodate bundle manifest ${A3Channel} "
     fi
 }
 function DoUploadOss()

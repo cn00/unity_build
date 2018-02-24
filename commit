@@ -15,7 +15,7 @@ function DoCommit()
     msg="$2"
     ${echo} "is Git-Svn repository? ${GitSvn}"
     if [[ "${GitSvn}x" = "truex" ]];then
-        git add --force "${file}"
+        git add --force -- ${file}
         git commit -m "${msg}"
         stashmsg=$(git stash)
         git svn dcommit
@@ -24,8 +24,8 @@ function DoCommit()
            git stash pop 
         fi
     else
-        svn add --force --depth infinity "${file}"
-        svn commit --username "${svnuname}" --password "${svnpword}" -m "${msg}" -- "${file}"
+        svn add --force --depth infinity -- ${file}
+        svn commit --username "${svnuname}" --password "${svnpword}" -m "${msg}" -- ${file}
     fi
     ${echo} "auto commit: ${msg} ${file}"
 }
