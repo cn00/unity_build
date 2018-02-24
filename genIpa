@@ -18,6 +18,7 @@ if [[ "${#@}" = "0" ]];then
     --A3Channel string      Channel
     --LocalTest             true for odd buildNumber for LocalTest
     --Clean                 Clean old project
+    --DefineSymbols string  Define Symbols for c# scripts
     -E|--ExportIOSProj      Export iOS project
     -S|--Simulator          iOS simulator project
     -N|--IncrBuildNo        Increase build nomber
@@ -63,8 +64,9 @@ if [[ ! -d "Assets" ]]; then
    exit 1
 fi
 
-temp=$(getopt -o CDFRSKENUI:AP --long Clean:LocalTest,UploadFtp,A3Channel:,Simulator,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadProduct,Identify:,\
-IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
+temp=$(getopt -o CDFRSKENUI:AP --long Clean:LocalTest,UploadFtp,A3Channel:,\
+Simulator,ExportIpa,XcodeArchive,Debug,Release,KillUnity,ExportIOSProj,UploadProduct,Identify:,\
+DefineSymbols:,IncrBuildNo,IncrMajorVersion,IncrMinorVersion,IncrPatchVersion -- "$@")
 if [ $? != 0  ] ; then 
     echo "terminating..." >&2 
     exit 1 
@@ -129,6 +131,10 @@ while true;do
     --IncrPatchVersion) 
         IncrPatchVersion="true"; 
         shift
+    ;;
+    --DefineSymbols)
+        export DefineSymbols="$2";
+        shift 2
     ;;
     -E|--ExportIOSProj) 
         ExportIOSProj="true"; 
@@ -321,9 +327,9 @@ function DoUpdateConfig()
     ${echo} "bundleVersion: ${bundleVersion} => ${NewBundleVersion}"
     
     # buildNumber
-    local fiosBuildNumber="~/workspace/Global/iosBuildNumber"
-    if [[ -d "~/workspace/Global/" ]];then
-        mkdir -p "~/workspace/Global/"
+    local fiosBuildNumber="${HOME}/Global/iosBuildNumber"
+    if [[ -d "${HOME}/Global/" ]];then
+        mkdir -p "${HOME}/Global/"
     fi
     if [[ ! -f "${fiosBuildNumber}" ]];then
         echo "0" > ${fiosBuildNumber}
